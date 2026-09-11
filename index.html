@@ -1,0 +1,3500 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🎄 Der Gemeinsame Weihnachtsbaum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold: #d4af37;
+    --warm: #ffd27a;
+    --panel-bg: rgba(10, 18, 40, 0.72);
+    --panel-border: rgba(212, 175, 55, 0.35);
+    --danger: #ff6b6b;
+  }
+  *{ box-sizing: border-box; }
+  html, body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background: linear-gradient(to bottom, #050b1f 0%, #0a1330 35%, #12204a 65%, #1b2f5e 100%);
+    font-family:'Quicksand', sans-serif;
+    color:#f2f0ea;
+    transition: background 1.2s ease;
+  }
+  body.theme-halloween{
+    background: linear-gradient(to bottom, #120a1e 0%, #241130 35%, #34142f 65%, #3d1a2b 100%);
+  }
+  body.theme-halloween h1.title{ color:#ff8a1f; text-shadow: 0 0 14px rgba(255,138,31,0.65), 0 2px 4px rgba(0,0,0,0.6); }
+  #pixi-container{ position:fixed; inset:0; z-index:1; }
+  #pixi-container canvas{ display:block; }
+
+  #ui-overlay{ position:fixed; inset:0; z-index:5; pointer-events:none; }
+  #ui-overlay > *{ pointer-events:auto; }
+
+  h1.title{
+    position:fixed; top:12px; left:50%; transform:translateX(-50%);
+    font-family:'Mountains of Christmas', cursive; font-weight:700;
+    font-size:clamp(20px, 3.6vw, 34px); color:var(--gold);
+    text-shadow: 0 0 12px rgba(212,175,55,0.6), 0 2px 4px rgba(0,0,0,0.6);
+    margin:0; text-align:center; pointer-events:none;
+  }
+
+  /* --- Steuer-Leiste direkt unter dem Titel: Gieß-Button + Status --- */
+  #top-controls-bar{
+    position:fixed; top:62px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+    background: var(--panel-bg); border:1px solid var(--panel-border);
+    border-radius:20px; padding:10px 16px; max-width:94vw;
+    backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    z-index:10;
+  }
+  #water-btn{
+    width:56px; height:56px; flex-shrink:0; border-radius:50%; border:2px solid var(--panel-border);
+    background: radial-gradient(circle at 35% 30%, #3a6bb0, #1c3868);
+    font-size:26px; cursor:pointer; color:#fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    transition: transform 0.15s ease, box-shadow 0.3s ease, filter 0.3s ease;
+  }
+  #water-btn.ready{
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4), 0 0 18px 3px rgba(212,175,55,0.55);
+    animation: readyBob 1.8s ease-in-out infinite;
+  }
+  #water-btn:disabled{ filter: grayscale(0.7) brightness(0.6); cursor:not-allowed; }
+  #water-btn:not(:disabled):hover{ transform: scale(1.08); }
+  #water-btn:not(:disabled):active{ transform: scale(0.94); }
+  @keyframes readyBob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-5px);} }
+
+  #care-btn{
+    width:46px; height:46px; flex-shrink:0; border-radius:50%; border:2px solid var(--panel-border);
+    background: radial-gradient(circle at 35% 30%, #3aa15a, #1c4a2e);
+    font-size:19px; cursor:pointer; color:#fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    transition: transform 0.15s ease, filter 0.3s ease;
+  }
+  #care-btn:disabled{ filter: grayscale(0.75) brightness(0.55); cursor:not-allowed; }
+  #care-btn:not(:disabled):hover{ transform: scale(1.08); }
+  #care-btn:not(:disabled):active{ transform: scale(0.94); }
+
+  #status-block{ text-align:left; min-width:180px; }
+  #level-label{ font-weight:700; color:var(--warm); font-size:14px; margin-bottom:4px; }
+  #timer-label{ font-size:12.5px; opacity:0.9; }
+  #warning-label{
+    display:none; margin-top:4px; color:var(--warm); font-weight:600; font-size:12px;
+    max-width:220px; transition: color 0.4s ease;
+  }
+  #warning-label.urgent{ color:var(--danger); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{opacity:0.55;} 50%{opacity:1;} }
+  #progress-track{
+    margin-top:6px; width:180px; max-width:40vw; height:7px; border-radius:6px;
+    background: rgba(255,255,255,0.12); overflow:hidden;
+  }
+  #progress-fill{
+    height:100%; width:0%; border-radius:6px;
+    background: linear-gradient(90deg, #2e7d32, #66bb6a, var(--gold));
+    transition: width 0.6s ease;
+  }
+
+  #top-right-controls{
+    position:fixed; top:14px; right:14px; display:flex; flex-wrap:wrap; justify-content:flex-end;
+    gap:8px; z-index:10; max-width:220px;
+  }
+  .icon-btn{
+    width:42px; height:42px; border-radius:50%; border:1px solid var(--panel-border);
+    background: var(--panel-bg); color:#f2f0ea; font-size:17px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; backdrop-filter: blur(6px);
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  .icon-btn:hover{ transform: scale(1.08); background: rgba(30,45,80,0.85); }
+  .icon-btn:active{ transform: scale(0.95); }
+
+  #config-warning{
+    display:none; position:fixed; top:130px; left:50%; transform:translateX(-50%);
+    background: rgba(120, 20, 20, 0.85); border:1px solid rgba(255,255,255,0.25);
+    padding:10px 18px; border-radius:12px; font-size:13px; max-width:90vw; text-align:center;
+    z-index:20;
+  }
+
+  #toast-container{
+    position:fixed; top:130px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:8px; z-index:30; align-items:center;
+  }
+  .toast{
+    background: rgba(20,30,55,0.92); border:1px solid var(--panel-border);
+    padding:10px 18px; border-radius:12px; font-size:14px; max-width:80vw;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4); opacity:0; transform:translateY(-8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+
+  /* --- Countdown Nikolaus / Weihnachten --- */
+  #countdown-badge{
+    position:fixed; top:14px; left:14px; z-index:10;
+    background: var(--panel-bg); border:1px solid var(--panel-border);
+    border-radius:14px; padding:8px 14px; backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4); font-size:11.5px; line-height:1.5;
+  }
+  #countdown-badge div{ white-space:nowrap; }
+  #countdown-summary{ display:none; }
+  body.is-mobile #countdown-summary{
+    display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600;
+  }
+  body.is-mobile #countdown-details{ display:none; margin-top:6px; }
+  body.is-mobile #countdown-badge.expanded #countdown-details{ display:block; }
+  #countdown-chevron{ opacity:0.6; transition: transform 0.2s ease; }
+  body.is-mobile #countdown-badge.expanded #countdown-chevron{ transform: rotate(180deg); }
+  .countdown-track{
+    width:100%; height:5px; border-radius:4px; background: rgba(255,255,255,0.14);
+    overflow:hidden; margin:3px 0 7px;
+  }
+  .countdown-fill{
+    height:100%; width:0%; border-radius:4px;
+    background: linear-gradient(90deg, #8a2be2, var(--gold));
+    transition: width 1s ease;
+  }
+  .countdown-fill.weih{ background: linear-gradient(90deg, #2e7d32, #e04d4d); }
+  body.is-mobile #countdown-badge{ font-size:10px; padding:6px 10px; left:8px; }
+
+  /* --- Mystery-Geschenk (unter dem Chat, auffällig animiert) --- */
+  #mystery-gift-panel{
+    position:fixed; left:14px; top:calc(136px + 44vh + 14px); z-index:9;
+    background: var(--panel-bg); border:1px solid var(--panel-border); border-radius:16px;
+    padding:10px; backdrop-filter: blur(8px);
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    width:116px; transition: width 0.5s ease;
+    animation: giftGlow 3s ease-in-out infinite, giftWobble 9s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+  @keyframes giftGlow{
+    0%,100%{ box-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 0 8px 1px rgba(212,175,55,0.25); }
+    50%{ box-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 0 18px 5px rgba(212,175,55,0.55); }
+  }
+  @keyframes giftWobble{
+    0%,88%,100%{ transform: rotate(0deg); }
+    90%{ transform: rotate(-6deg); }
+    93%{ transform: rotate(5deg); }
+    96%{ transform: rotate(-3deg); }
+  }
+  #mystery-gift-panel.gift-open{
+    width:230px;
+    animation: giftGlowOpen 2.2s ease-in-out infinite;
+  }
+  @keyframes giftGlowOpen{
+    0%,100%{ box-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 0 14px 3px rgba(255,214,77,0.5); }
+    50%{ box-shadow: 0 6px 20px rgba(0,0,0,0.4), 0 0 26px 8px rgba(255,214,77,0.85); }
+  }
+  #gift-ring{
+    --pct:0; width:70px; height:70px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background: conic-gradient(var(--gold) calc(var(--pct)*1%), rgba(255,255,255,0.14) 0);
+    transition: background 0.6s ease;
+  }
+  #gift-ring-inner{
+    width:56px; height:56px; border-radius:50%; background:#0d1836;
+    display:flex; align-items:center; justify-content:center; font-size:24px;
+  }
+  #gift-label{ font-size:11px; font-weight:700; color:var(--warm); text-align:center; }
+  #gift-caption{ font-size:9px; opacity:0.65; text-align:center; }
+  #gift-reveal{ display:none; flex-direction:column; align-items:center; gap:6px; width:100%; margin-top:2px; }
+  #gift-reveal.show{ display:flex; }
+  #gift-video-wrap{
+    width:100%; aspect-ratio:16/9; border-radius:8px; overflow:hidden;
+    background:#000; font-size:10px; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:4px; opacity:0.8;
+  }
+  #gift-video-wrap iframe{ width:100%; height:100%; border:0; }
+  #gift-youtube-link{ font-size:10.5px; color:#7ec4ff; text-decoration:none; font-weight:600; }
+
+  /* Auf dem Handy ist das Geschenk-Panel standardmäßig eingeklappt (wie der
+     Chat) - ein kleiner 🎁-Button unten rechts öffnet/schließt es, damit es
+     nicht dauerhaft Platz auf dem kleinen Bildschirm belegt. */
+  #gift-toggle-btn{
+    display:none; position:fixed; right:14px; bottom:16px; z-index:9;
+    width:50px; height:50px; border-radius:50%; align-items:center; justify-content:center;
+    background: var(--panel-bg); border:1px solid var(--panel-border); color:#fff;
+    font-size:21px; backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  #gift-toggle-btn.ready::after{
+    content:''; position:absolute; top:2px; right:2px; width:12px; height:12px;
+    border-radius:50%; background: var(--gold); border:2px solid #0a1330;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  body.is-mobile #gift-toggle-btn{ display:flex; }
+  body.is-mobile #mystery-gift-panel{
+    display:none; left:auto; right:14px; top:auto; bottom:76px; transform-origin: bottom right;
+    width:150px; padding:8px;
+  }
+  body.is-mobile #mystery-gift-panel.mobile-open{ display:flex; }
+  body.is-mobile #gift-ring{ width:52px; height:52px; }
+  body.is-mobile #gift-ring-inner{ width:42px; height:42px; font-size:18px; }
+  body.is-mobile #mystery-gift-panel.gift-open{ width:200px; }
+
+  /* --- Online-Anzeige --- */
+  #online-badge{ font-size:11px; opacity:0.75; margin-top:3px; }
+
+  /* --- Kompakte Highscore-Listen (rechts, unter den Minispiel-Buttons gestapelt) --- */
+  #highscore-panel, #highscore-panel-2, #highscore-panel-3{
+    position:fixed; right:14px; top:520px; z-index:8;
+    width:clamp(190px, 30vw, 230px);
+    background: var(--panel-bg); border:1px solid var(--panel-border); border-radius:14px;
+    backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    padding:8px 12px 10px;
+  }
+  #highscore-header, #highscore-header-2, #highscore-header-3{ font-weight:700; font-size:12.5px; color:var(--warm); margin-bottom:5px; }
+  #highscore-list, #highscore-list-2, #highscore-list-3, #minigame-highscores-list, #minigame2-highscores-list, #minigame3-highscores-list{
+    list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:3px;
+    font-size:11.5px;
+  }
+  #highscore-list li, #highscore-list-2 li, #highscore-list-3 li, #minigame-highscores-list li, #minigame2-highscores-list li, #minigame3-highscores-list li{
+    display:flex; justify-content:space-between; gap:8px; opacity:0.9;
+  }
+  #highscore-list li.hs-empty, #highscore-list-2 li.hs-empty, #highscore-list-3 li.hs-empty, #minigame-highscores-list li.hs-empty, #minigame2-highscores-list li.hs-empty, #minigame3-highscores-list li.hs-empty{
+    opacity:0.5; font-style:italic; justify-content:flex-start;
+  }
+  .hs-rank{ color:var(--gold); font-weight:700; width:16px; flex-shrink:0; }
+  .hs-name{ flex:1; letter-spacing:1px; }
+  .hs-score{ font-weight:700; }
+  body.is-mobile #highscore-panel, body.is-mobile #highscore-panel-2, body.is-mobile #highscore-panel-3{ display:none; } /* Bestenlisten bleiben in den Minispiel-Modals erreichbar */
+
+  /* --- Minispiele --- */
+  #minigame-backdrop, #minigame2-backdrop, #minigame3-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:60;
+    align-items:center; justify-content:center; padding:14px;
+  }
+  #minigame-backdrop.show, #minigame2-backdrop.show, #minigame3-backdrop.show{ display:flex; }
+  #minigame-modal, #minigame2-modal, #minigame3-modal{
+    position:relative; background:#0d1836; border:1px solid var(--panel-border); border-radius:18px;
+    padding:20px; max-width:420px; width:100%; max-height:92vh; overflow-y:auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6); text-align:center;
+  }
+  #minigame-modal h2, #minigame2-modal h2, #minigame3-modal h2{ margin:0 0 6px; color:var(--gold); font-family:'Mountains of Christmas', cursive; font-size:26px; }
+  #minigame-intro, #minigame2-intro, #minigame3-intro{ font-size:12.5px; opacity:0.85; line-height:1.5; margin:0 0 12px; }
+  #minigame-close-btn, #minigame2-close-btn, #minigame3-close-btn{
+    position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:50%;
+    border:1px solid var(--panel-border); background:rgba(255,255,255,0.08); color:#fff;
+    cursor:pointer; font-size:14px;
+  }
+  #minigame-canvas, #minigame2-canvas, #minigame3-canvas{
+    background: linear-gradient(to bottom, #0a1330, #1b2f5e);
+    border-radius:12px; max-width:100%; height:auto; touch-action:none; cursor:none;
+    display:block; margin:0 auto;
+  }
+  #minigame2-canvas{ cursor:crosshair; }
+  #minigame3-canvas{ cursor:pointer; }
+  #minigame-overlay, #minigame2-overlay, #minigame3-overlay{
+    position:relative; margin-top:-70px; margin-bottom:20px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #minigame-start-btn, #minigame-restart-btn, #minigame2-start-btn, #minigame2-restart-btn, #minigame3-start-btn, #minigame3-restart-btn{
+    background: var(--gold); color:#1b1300; border:none; border-radius:12px;
+    padding:12px 22px; font-weight:700; font-size:14px; cursor:pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  #minigame-gameover, #minigame2-gameover, #minigame3-gameover{ margin-top:-70px; margin-bottom:16px; }
+  #minigame-final-score, #minigame2-final-score, #minigame3-final-score{ font-size:20px; font-weight:700; color:var(--warm); margin-bottom:10px; text-shadow:0 2px 6px rgba(0,0,0,0.6); }
+  #minigame3-crash-line{ font-size:14px; font-style:italic; color:#ffb3b3; margin:-4px 0 12px; min-height:20px; }
+  #minigame-name-row, #minigame2-name-row, #minigame3-name-row{ display:flex; gap:6px; justify-content:center; margin-bottom:10px; }
+  #minigame-name-input, #minigame2-name-input, #minigame3-name-input{
+    width:90px; text-align:center; letter-spacing:3px; text-transform:uppercase;
+    background: rgba(255,255,255,0.1); border:1px solid var(--panel-border); border-radius:8px;
+    color:#fff; padding:8px 6px; font-size:14px; font-weight:700;
+  }
+  #minigame-save-btn, #minigame2-save-btn, #minigame3-save-btn{
+    background: #3aa15a; color:#fff; border:none; border-radius:8px; padding:8px 14px;
+    font-weight:700; cursor:pointer; font-size:13px;
+  }
+  #minigame-highscores, #minigame2-highscores, #minigame3-highscores{ margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px; text-align:left; }
+  #minigame-highscores-header, #minigame2-highscores-header, #minigame3-highscores-header{ font-weight:700; color:var(--warm); font-size:13px; margin-bottom:6px; text-align:center; }
+  #minigame-highscores-list, #minigame2-highscores-list, #minigame3-highscores-list{ font-size:13px; }
+
+
+  /* --- Live-Chat-Ticker links --- */
+  #chat-panel{
+    position:fixed; left:14px; top:136px;
+    width:clamp(190px, 30vw, 230px);
+    max-height:44vh;
+    background: var(--panel-bg); border:1px solid var(--panel-border);
+    border-radius:14px; backdrop-filter: blur(8px);
+    display:flex; flex-direction:column; overflow:hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    z-index:8;
+  }
+  #chat-header{
+    padding:8px 12px; font-weight:700; font-size:12.5px; color:var(--warm);
+    border-bottom:1px solid rgba(255,255,255,0.08); flex-shrink:0;
+  }
+  #chat-messages{
+    flex:1; overflow-y:auto; padding:8px 10px; display:flex; flex-direction:column;
+    gap:6px; font-size:11.5px; line-height:1.35; min-height:60px;
+  }
+  #chat-messages:empty::after{
+    content:"Noch keine Nachrichten – schreib die erste! 🎄";
+    opacity:0.5; font-style:italic;
+  }
+  .chat-msg{ word-break:break-word; }
+  .chat-msg .nick{ color:var(--gold); font-weight:600; }
+  #chat-input-row{
+    display:flex; gap:6px; padding:8px; border-top:1px solid rgba(255,255,255,0.08); flex-shrink:0;
+  }
+  #chat-input{
+    flex:1; min-width:0; background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.18);
+    border-radius:8px; color:#fff; padding:6px 8px; font-size:12px; font-family: inherit;
+  }
+  #chat-input::placeholder{ color:rgba(255,255,255,0.4); }
+  #chat-send-btn{
+    background: var(--gold); border:none; border-radius:8px; padding:0 12px;
+    font-weight:700; cursor:pointer; font-size:13px; flex-shrink:0;
+  }
+  #chat-send-btn:active{ transform: scale(0.95); }
+  #chat-charcount{ font-size:10px; opacity:0.55; text-align:right; padding:0 10px 6px; flex-shrink:0; }
+
+  @media (max-width: 560px){
+    #chat-panel{ top:150px; max-height:34vh; width:clamp(150px, 42vw, 190px); }
+    #status-block{ min-width:140px; }
+    #progress-track{ width:120px; }
+  }
+
+  /* --- Handy-Erkennung: wird per JavaScript auf <body> gesetzt --- */
+  #chat-toggle-btn{
+    display:none; position:fixed; left:14px; bottom:16px; z-index:9;
+    width:50px; height:50px; border-radius:50%; align-items:center; justify-content:center;
+    background: var(--panel-bg); border:1px solid var(--panel-border); color:#fff;
+    font-size:21px; backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  #chat-toggle-btn.has-unread::after{
+    content:''; position:absolute; top:2px; right:2px; width:12px; height:12px;
+    border-radius:50%; background: var(--danger); border:2px solid #0a1330;
+  }
+
+  body.is-mobile h1.title{
+    font-size: clamp(13px, 4.4vw, 17px); top:6px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:62vw;
+  }
+  body.is-mobile #top-controls-bar{
+    padding:6px 10px; gap:6px; border-radius:16px;
+  }
+  body.is-mobile #water-btn{ width:42px; height:42px; font-size:18px; }
+  body.is-mobile #care-btn{ width:34px; height:34px; font-size:15px; }
+  body.is-mobile #status-block{ min-width:0; }
+  body.is-mobile #level-label{ font-size:11.5px; margin-bottom:2px; }
+  body.is-mobile #timer-label{ font-size:10px; }
+  body.is-mobile #warning-label{ font-size:10px; max-width:150px; margin-top:2px; }
+  body.is-mobile #progress-track{ width:100px; height:5px; margin-top:3px; }
+  body.is-mobile #online-badge{ display:none; } /* spart Platz - Info bleibt im Info-Modal */
+  body.is-mobile #top-right-controls{ right:8px; gap:5px; }
+  body.is-mobile .icon-btn{ width:32px; height:32px; font-size:14px; }
+  body.is-mobile #config-warning{ font-size:12px; padding:8px 14px; }
+  body.is-mobile #toast-container{ }
+  body.is-mobile .toast{ font-size:12.5px; padding:8px 14px; }
+
+  /* Chat wird auf dem Handy zu einer ausklappbaren Leiste am unteren Rand,
+     damit sie den Baum nicht dauerhaft verdeckt. */
+  body.is-mobile #chat-toggle-btn{ display:flex; }
+  body.is-mobile #chat-panel{
+    display:none; left:10px; right:10px; top:auto; bottom:76px;
+    width:auto; max-height:48vh;
+  }
+  body.is-mobile #chat-panel.chat-open{ display:flex; }
+
+  #modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:50;
+    align-items:center; justify-content:center;
+  }
+  #modal-backdrop.show{ display:flex; }
+  #info-modal{
+    background: #0d1836; border:1px solid var(--panel-border); border-radius:16px;
+    padding:22px 24px; max-width:420px; width:88vw; max-height:80vh; overflow-y:auto;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  }
+  #info-modal h2{ margin-top:0; color:var(--gold); font-family:'Mountains of Christmas', cursive; font-size:26px;}
+  #info-modal p{ font-size:14px; line-height:1.55; opacity:0.92; }
+  #info-modal button{
+    margin-top:10px; background: var(--gold); color:#1b1300; border:none; border-radius:10px;
+    padding:9px 18px; font-weight:700; cursor:pointer;
+  }
+
+  details.setup-guide{
+    position: relative; z-index: 10; margin: 0; padding: 18px 22px 26px;
+    background: rgba(6,12,28,0.92); color:#e8e6de; font-size:13.5px; line-height:1.6;
+  }
+  details.setup-guide summary{
+    cursor:pointer; font-weight:700; color:var(--gold); padding:10px 0; font-size:14.5px;
+    list-style:none;
+  }
+  details.setup-guide summary::-webkit-details-marker{ display:none; }
+  details.setup-guide summary::before{ content:"▶ "; }
+  details.setup-guide[open] summary::before{ content:"▼ "; }
+  details.setup-guide code, details.setup-guide pre{
+    background: rgba(255,255,255,0.08); padding:2px 6px; border-radius:5px;
+    font-family: Consolas, Monaco, monospace; font-size:12.5px;
+  }
+  details.setup-guide pre{ padding:12px; overflow-x:auto; }
+  details.setup-guide a{ color:#7ec4ff; }
+  #page-scroll-wrapper{ position:relative; width:100%; height:100%; overflow-y:auto; z-index: 2;}
+  #game-area{ position:relative; width:100%; height:100vh; }
+</style>
+</head>
+<body>
+
+<div id="page-scroll-wrapper">
+  <div id="game-area">
+    <div id="pixi-container"></div>
+
+    <div id="ui-overlay">
+      <h1 class="title">🎄 Der Gemeinsame Weihnachtsbaum</h1>
+
+      <div id="countdown-badge">
+        <div id="countdown-summary">🎅⁠🎄 <span id="countdown-summary-text">–</span> <span id="countdown-chevron">▾</span></div>
+        <div id="countdown-details">
+          <div id="countdown-nikolaus">🎅 Nikolaus in – Tagen</div>
+          <div class="countdown-track"><div id="countdown-nikolaus-fill" class="countdown-fill"></div></div>
+          <div id="countdown-weihnachten">🎄 Weihnachten in – Tagen</div>
+          <div class="countdown-track"><div id="countdown-weihnachten-fill" class="countdown-fill weih"></div></div>
+        </div>
+      </div>
+
+      <div id="top-controls-bar">
+        <button id="water-btn" title="Baum gießen">💧</button>
+        <button id="care-btn" title="Pflegen: verkürzt den Gieß-Cooldown um 15 Minuten">🌿</button>
+        <div id="status-block">
+          <div id="level-label">Stufe 0 / 100</div>
+          <div id="progress-track"><div id="progress-fill"></div></div>
+          <div id="timer-label">Verbinde mit dem Server …</div>
+          <div id="warning-label">⚠️ Der Baum verwelkt bald!</div>
+          <div id="online-badge">👥 – online</div>
+        </div>
+      </div>
+
+      <div id="top-right-controls">
+        <button class="icon-btn" id="minigame-btn" title="Minispiel: Geschenke fangen">🎮</button>
+        <button class="icon-btn" id="minigame2-btn" title="Minispiel: Kopf-Ziel (Zwille)">🎯</button>
+        <button class="icon-btn" id="minigame3-btn" title="Minispiel: Flappy Weihnachten">🐦</button>
+        <button class="icon-btn" id="music-btn" title="Musik an/aus">🔇</button>
+        <button class="icon-btn" id="info-btn" title="Wie funktioniert's?">ℹ️</button>
+      </div>
+
+      <button id="chat-toggle-btn" title="Chat öffnen/schließen">💬</button>
+
+      <div id="chat-panel">
+        <div id="chat-header">💬 Live-Chat (für alle sichtbar)</div>
+        <div id="chat-messages"></div>
+        <div id="chat-input-row">
+          <input id="chat-input" type="text" maxlength="60" placeholder="Nachricht an alle …">
+          <button id="chat-send-btn">➤</button>
+        </div>
+        <div id="chat-charcount">0/60</div>
+      </div>
+
+      <div id="config-warning">⚠️ Firebase ist noch nicht konfiguriert – bitte trage deine Zugangsdaten im Code ein (siehe Anleitung unten).</div>
+
+      <button id="gift-toggle-btn" title="Geschenk öffnen/schließen">🎁</button>
+
+      <div id="mystery-gift-panel">
+        <div id="gift-ring"><div id="gift-ring-inner">🎁</div></div>
+        <div id="gift-label">0% geöffnet</div>
+        <div id="gift-caption">Öffnet bei Stufe 100</div>
+        <div id="gift-reveal">
+          <div id="gift-video-wrap"></div>
+          <a id="gift-youtube-link" href="#" target="_blank" rel="noopener">▶️ Auf YouTube öffnen</a>
+        </div>
+      </div>
+
+      <div id="highscore-panel">
+        <div id="highscore-header">🏆 Top-Fänger</div>
+        <ol id="highscore-list"><li class="hs-empty">Noch keine Einträge</li></ol>
+      </div>
+
+      <div id="highscore-panel-2">
+        <div id="highscore-header-2">🎯 Top-Schützen</div>
+        <ol id="highscore-list-2"><li class="hs-empty">Noch keine Einträge</li></ol>
+      </div>
+
+      <div id="highscore-panel-3">
+        <div id="highscore-header-3">🐦 Top-Flieger</div>
+        <ol id="highscore-list-3"><li class="hs-empty">Noch keine Einträge</li></ol>
+      </div>
+
+      <div id="toast-container"></div>
+    </div>
+
+    <div id="minigame-backdrop">
+      <div id="minigame-modal">
+        <button id="minigame-close-btn" title="Schließen">✕</button>
+        <h2>🎁 Geschenke fangen!</h2>
+        <p id="minigame-intro">Bewege die Maus (oder den Finger) über das Spielfeld – dein Cursor wird zum Weihnachtssack. Fang 60 Sekunden lang Geschenke (+ Punkte) und weich den Kackhaufen aus (− Punkte)!</p>
+        <canvas id="minigame-canvas" width="360" height="440"></canvas>
+        <div id="minigame-overlay">
+          <button id="minigame-start-btn">▶️ Spiel starten</button>
+        </div>
+        <div id="minigame-gameover" style="display:none;">
+          <div id="minigame-final-score">0 Punkte</div>
+          <div id="minigame-name-row">
+            <input id="minigame-name-input" type="text" maxlength="5" placeholder="AAAAA" autocomplete="off">
+            <button id="minigame-save-btn">Speichern</button>
+          </div>
+          <button id="minigame-restart-btn">🔄 Nochmal spielen</button>
+        </div>
+        <div id="minigame-highscores">
+          <div id="minigame-highscores-header">🏆 Bestenliste</div>
+          <ol id="minigame-highscores-list"><li class="hs-empty">Noch keine Einträge</li></ol>
+        </div>
+      </div>
+    </div>
+
+    <div id="minigame2-backdrop">
+      <div id="minigame2-modal">
+        <button id="minigame2-close-btn" title="Schließen">✕</button>
+        <h2>🎯 Kopf-Ziel: Zwille</h2>
+        <p id="minigame2-intro">Ziel mit der Zwille auf den grün-grummeligen Unruhestifter (+ Punkte) – aber verschone Weihnachtsmann, Elfen und Rudolph, die helfen schließlich beim Fest (− Punkte bei Treffer)! 60 Sekunden Zeit.</p>
+        <canvas id="minigame2-canvas" width="360" height="440"></canvas>
+        <div id="minigame2-overlay">
+          <button id="minigame2-start-btn">▶️ Spiel starten</button>
+        </div>
+        <div id="minigame2-gameover" style="display:none;">
+          <div id="minigame2-final-score">0 Punkte</div>
+          <div id="minigame2-name-row">
+            <input id="minigame2-name-input" type="text" maxlength="5" placeholder="AAAAA" autocomplete="off">
+            <button id="minigame2-save-btn">Speichern</button>
+          </div>
+          <button id="minigame2-restart-btn">🔄 Nochmal spielen</button>
+        </div>
+        <div id="minigame2-highscores">
+          <div id="minigame2-highscores-header">🏆 Bestenliste</div>
+          <ol id="minigame2-highscores-list"><li class="hs-empty">Noch keine Einträge</li></ol>
+        </div>
+      </div>
+    </div>
+
+    <div id="minigame3-backdrop">
+      <div id="minigame3-modal">
+        <button id="minigame3-close-btn" title="Schließen">✕</button>
+        <h2>🐦 Flappy Weihnachten</h2>
+        <p id="minigame3-intro">Klick, tippe oder drücke die Leertaste, um zu fliegen – weiche Schornsteinen, Geschenke-Türmen und Kerzen aus. Für jedes geschaffte Hindernis gibt's einen Punkt (und manchmal einen Spruch)!</p>
+        <canvas id="minigame3-canvas" width="360" height="440"></canvas>
+        <div id="minigame3-overlay">
+          <button id="minigame3-start-btn">▶️ Spiel starten</button>
+        </div>
+        <div id="minigame3-gameover" style="display:none;">
+          <div id="minigame3-final-score">0 Punkte</div>
+          <div id="minigame3-crash-line"></div>
+          <div id="minigame3-name-row">
+            <input id="minigame3-name-input" type="text" maxlength="5" placeholder="AAAAA" autocomplete="off">
+            <button id="minigame3-save-btn">Speichern</button>
+          </div>
+          <button id="minigame3-restart-btn">🔄 Nochmal spielen</button>
+        </div>
+        <div id="minigame3-highscores">
+          <div id="minigame3-highscores-header">🏆 Bestenliste</div>
+          <ol id="minigame3-highscores-list"><li class="hs-empty">Noch keine Einträge</li></ol>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-backdrop">
+      <div id="info-modal">
+        <h2>🎁 Wie funktioniert's?</h2>
+        <p><strong>Ein Baum für alle:</strong> Jede Person weltweit, die diese Seite geöffnet hat, gießt denselben Baum. Jeder Gieß-Erfolg lässt den Baum für alle sichtbar wachsen (0–100) – ihr seht das Wachstum live und animiert vor euch geschehen.</p>
+        <p><strong>Cooldown:</strong> Nach jedem Gießen müssen 4 Stunden vergehen, bevor irgendjemand erneut gießen darf.</p>
+        <p><strong>Achtung, Verfall:</strong> Sofort nach dem Gießen startet ein 12-Stunden-Timer. Innerhalb dieser Zeit muss – sobald der 4-Stunden-Cooldown vorbei ist – erneut gegossen werden. Der Countdown ist durchgehend sichtbar und färbt sich in den letzten 2 Stunden rot. Läuft er komplett ab, verwelkt der Baum vollständig und bleibt in seiner aktuellen Größe als kahler, toter Baum stehen, bis ihn jemand wieder gießt und er als kleiner Sämling neu zu wachsen beginnt.</p>
+        <p><strong>🌿 Pflegen:</strong> Der grüne Knopf neben der Gießkanne verkürzt den aktuellen Gieß-Cooldown sofort um 15 Minuten – nützlich, wenn es knapp wird. Einmal pro Stunde nutzbar.</p>
+        <p><strong>Live-Chat:</strong> Links könnt ihr euch kurze Nachrichten (max. 60 Zeichen) schreiben – sichtbar für alle, die gerade online sind.</p>
+        <button id="info-close-btn">Verstanden!</button>
+      </div>
+    </div>
+  </div>
+
+  <details class="setup-guide">
+    <summary>📖 Setup-Anleitung: Lokal starten & Firebase in 2 Minuten einrichten</summary>
+    <p><strong>1. Lokal starten:</strong> Diese <code>index.html</code> einfach doppelt anklicken oder mit einem lokalen Server öffnen (z. B. <code>npx serve .</code> oder VS-Code-Erweiterung "Live Server"). Ein echter Server ist empfehlenswert, damit ES-Module (Firebase) sauber laden.</p>
+    <p><strong>2. Firebase-Projekt anlegen (kostenlos, ~2 Minuten):</strong></p>
+    <pre>1. Gehe zu https://console.firebase.google.com
+2. "Projekt hinzufügen" → Namen vergeben → erstellen
+3. Im Menü links: "Build" → "Firestore Database" (NICHT Realtime Database!)
+   → "Datenbank erstellen" → Standort wählen → Modus "Testmodus"
+4. Im Menü links: Zahnrad ⚙️ → "Projekteinstellungen"
+5. Unten bei "Meine Apps" → Web-App (</> Symbol) hinzufügen
+   → einen Namen vergeben → "App registrieren"
+6. Das angezeigte firebaseConfig-Objekt kopieren</pre>
+    <p><strong>3. Konfiguration eintragen:</strong> Suche im Code (Strg+F) nach <code>DEIN_API_KEY</code> und ersetze das komplette <code>firebaseConfig</code>-Objekt durch das kopierte aus Schritt 2.</p>
+    <p><strong>4. Firestore-Sicherheitsregeln:</strong> Im Firebase-Menü "Firestore Database" → Tab "Regeln" folgendes eintragen und veröffentlichen. <strong>Wichtig:</strong> Diese Version enthält jetzt zusätzlich Regeln für Chat, Online-Anzeige und die Minispiel-Highscores – falls du vorher schon andere Regeln eingetragen hattest, ersetze sie komplett durch diese hier:</p>
+    <pre>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /christmasTree/global {
+      allow read, write: if true;
+    }
+
+    match /christmasTreeChat/{messageId} {
+      allow read: if true;
+      allow create: if request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 60
+                    && request.resource.data.nick is string
+                    && request.resource.data.nick.size() <= 60;
+      allow update, delete: if false;
+    }
+
+    match /christmasTreePresence/{clientId} {
+      allow read, write: if true;
+    }
+
+    match /christmasTreeHighscores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 5
+                    && request.resource.data.score is number;
+      allow update, delete: if false;
+    }
+
+    match /christmasTreeSlingshotScores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 5
+                    && request.resource.data.score is number;
+      allow update, delete: if false;
+    }
+
+    match /christmasTreeFlappyScores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.name.size() <= 5
+                    && request.resource.data.score is number;
+      allow update, delete: if false;
+    }
+  }
+}</pre>
+    <p><em>Hinweis:</em> Diese offenen Regeln sind bewusst simpel gehalten für ein Spaß-Projekt ohne Login. Der Chat-Filter (Wortliste + Spam-Erkennung) läuft nur clientseitig in der Seite selbst – wer die Firestore-API direkt anspricht, könnte ihn umgehen (das gilt auch fürs Minispiel: die Punktzahl wird clientseitig berechnet und ungeprüft gespeichert). Für den produktiven Einsatz solltest du serverseitige Validierung (z. B. Cloud Functions) ergänzen, damit niemand den Cooldown umgeht oder Fantasie-Highscores einträgt.</p>
+    <p><strong>5. Mystery-Geschenk-Video (optional):</strong> Suche im Code nach <code>DEINE_YOUTUBE_VIDEO_ID</code> und ersetze sie durch die ID deines Wunschvideos – das ist der Teil der YouTube-URL nach <code>watch?v=</code> (z. B. bei <code>youtube.com/watch?v=ABC123xyz</code> wäre die ID <code>ABC123xyz</code>). Lässt du das Feld leer/als Platzhalter, zeigt der Kasten bei Stufe 100 stattdessen einen freundlichen Hinweis.</p>
+    <p><strong>6. Flappy Weihnachten personalisieren (optional):</strong> Suche im Code nach <code>MG3_CHARACTER</code> und <code>MG3_PASS_MESSAGES</code>/<code>MG3_CRASH_MESSAGES</code> – dort lässt sich der Charakter (<code>'santa'</code>, <code>'grinch'</code>, <code>'reindeer'</code> oder <code>'emoji'</code> mit eigenem Zeichen) und die Sprüche beim Passieren eines Hindernisses bzw. beim Abstürzen frei anpassen, z. B. für eigene Insider-Witze oder Abschiedswünsche.</p>
+    <p><strong>7. Fertig!</strong> Datei speichern, neu laden – Baum, Chat, Online-Anzeige, Geschenk und alle drei Minispiele synchronisieren sich jetzt live über alle geöffneten Browser-Fenster/Geräte hinweg.</p>
+    <p style="opacity:0.7;">Neu: Ein 🎮-Button oben rechts öffnet das Minispiel "Geschenke fangen" – 60 Sekunden lang mit der Maus/dem Finger einen Sack steuern, Geschenke einsammeln (+Punkte), Kackhaufen ausweichen (−Punkte). Ein 🎯-Button öffnet "Kopf-Ziel: Zwille" – ebenfalls 60 Sekunden, mit der Zwille auf den grün-grummeligen Unruhestifter zielen (+Punkte), Weihnachtsmann/Elfen/Rudolph aber verschonen (−Punkte bei Treffer). Ein 🐦-Button öffnet "Flappy Weihnachten" – Klick/Tap/Leertaste zum Fliegen, Schornsteine/Geschenke-Türme/Kerzen ausweichen, mit anpassbaren Sprüchen beim Passieren und Abstürzen. Alle drei haben eigene Highscore-Listen: Top 5 kompakt unter den Minispiel-Buttons, Top 10 im jeweiligen Fenster. Namen sind auf 5 Zeichen (Buchstaben/Zahlen) begrenzt.</p>
+    <p style="opacity:0.7;">Neu: Alle paar Minuten fliegt ein Schlitten mit Rentieren (Rudolph vorneweg mit leuchtender Nase) über den Himmel. Am 31.10. schaltet die Seite automatisch in einen spukigen Look um (eigene, nicht-lizenzierte Gestaltung) – dann fliegt statt Rudolph ein Geisterhund mit einer Kürbis-Sleigh, der Baum trägt statt des Sterns einen leuchtenden Kürbis, und über dem Mond erscheint beim Hovern ein gruseliges Gesicht. Das Gießfeld oben ist fest unter dem Titel verankert.</p>
+    <p style="opacity:0.7;">Technik: PixiJS (Rendering), Firebase Firestore (<code>onSnapshot</code> + Transaktionen für Echtzeit-Sync ohne Backend), Web Audio API (synthetisierte Musik &amp; Sounds). Die Online-Zählung nutzt einen einfachen Heartbeat-Mechanismus (alle 20s ein "Ich bin noch da"-Signal je Client) statt einer echten Presence-API, da Firestore diese nicht nativ mitbringt. Baum, Landschaft und Schnee sind vollständig prozedural gezeichnete Vektorgrafik – kein Bild-Asset nötig. Zum Testen einzelner Wachstumsstufen kann in der Browser-Konsole <code>redrawTree(100)</code> eingegeben werden – das ändert nur die lokale Ansicht, nicht die geteilten Daten.</p>
+  </details>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.min.js"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot, runTransaction, serverTimestamp,
+  collection, addDoc, query, orderBy, limitToLast, limit
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* ============================================================
+   1) FIREBASE-KONFIGURATION
+   Ersetze dieses Objekt mit deinen eigenen Zugangsdaten
+   (siehe Anleitung unten auf der Seite).
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBNsjn-MndKopaNJ9VxqKLL64XUuscrHmc",
+  authDomain: "xmas-8057f.firebaseapp.com",
+  projectId: "xmas-8057f",
+  storageBucket: "xmas-8057f.firebasestorage.app",
+  messagingSenderId: "454684153864",
+  appId: "1:454684153864:web:55b0ce37cc2e601a7399bd"
+};
+
+const WATER_COOLDOWN_MS = 4 * 60 * 60 * 1000;   // 4 Stunden Gieß-Cooldown
+const DECAY_GRACE_MS    = 8 * 60 * 60 * 1000;   // danach weitere 8 Stunden, bis der Baum komplett verwelkt
+const TOTAL_TIMEOUT_MS  = WATER_COOLDOWN_MS + DECAY_GRACE_MS; // = 12 Stunden Verfall-Timer ab dem Gießen
+const DECAY_URGENT_MS   = 2 * 60 * 60 * 1000;   // letzte 2 Stunden vor Verfall: rote Dringlichkeits-Anzeige
+const CARE_COOLDOWN_MS  = 60 * 60 * 1000;       // "Pflegen"-Button: einmal pro Stunde nutzbar
+const CARE_BONUS_MS     = 15 * 60 * 1000;       // verkürzt den Gieß-Cooldown um 15 Minuten
+const MAX_LEVEL = 100;
+const CHAT_MAX_LEN = 60;
+const PRESENCE_TIMEOUT_MS = 45000; // nach dieser Zeit ohne Heartbeat gilt jemand als offline
+const MAX_VISIBLE_PEOPLE = 10;
+
+/* ============================================================
+   MYSTERY-GESCHENK: YouTube-Video, das bei Stufe 100 freigeschaltet wird.
+   Ersetze die ID durch die deines Wunsch-Videos (der Teil aus der URL
+   nach "v=" bzw. nach "youtu.be/").
+   ============================================================ */
+const MYSTERY_YOUTUBE_ID = "DEINE_YOUTUBE_VIDEO_ID";
+function isVideoPlaceholder() {
+  return !MYSTERY_YOUTUBE_ID || MYSTERY_YOUTUBE_ID === "DEINE_YOUTUBE_VIDEO_ID";
+}
+
+/* ============================================================
+   FLAPPY WEIHNACHTEN: Hier alles nach Belieben personalisieren!
+   MG3_CHARACTER: 'santa' | 'grinch' | 'reindeer' | 'emoji'
+   Bei 'emoji' wird stattdessen das Zeichen aus MG3_CHARACTER_EMOJI
+   verwendet (z.B. für einen persönlichen Avatar-Ersatz).
+   Die beiden Nachrichten-Listen erscheinen zufällig: PASS beim
+   Passieren eines Hindernisses, CRASH als Spruch beim Abstürzen.
+   Einfach eigene Insider-Sprüche/Abschiedswünsche eintragen!
+   ============================================================ */
+const MG3_CHARACTER = 'santa';
+const MG3_CHARACTER_EMOJI = '🧑';
+const MG3_PASS_MESSAGES = [
+  "Weiter geht's! 🎄",
+  "Sauber geflogen!",
+  "Nicht schlecht!",
+  "Ho ho ho!",
+  "Fast geschafft…",
+  "Immer diese Schornsteine!"
+];
+const MG3_CRASH_MESSAGES = [
+  "Ab in den vorgezogenen Ruhestand!",
+  "Zu viel Glühwein intus!",
+  "Der Kamin war stärker.",
+  "Aua – bis nächstes Jahr!",
+  "Landung nicht wie geplant.",
+  "Das Christkind übernimmt ab hier."
+];
+
+/* ============================================================
+   CHAT-FILTER: einfache Wortliste + Spam-Erkennung.
+   Läuft clientseitig vor dem Senden. Kein Ersatz für echte Moderation,
+   aber verhindert die meisten unbeabsichtigten/spontanen Ausrutscher.
+   Liste bei Bedarf einfach erweitern.
+   ============================================================ */
+const CHAT_BLOCKLIST = [
+  'arsch','arschloch','scheisse','scheiße','hurensohn','wichser','fotze',
+  'nazi','hitler','schlampe','missgeburt','behindert',
+  'fuck','shit','bitch','asshole','bastard','cunt','nigger','whore'
+];
+function normalizeForFilter(text) {
+  return text.toLowerCase()
+    .replace(/[@]/g, 'a').replace(/[0]/g, 'o')
+    .replace(/[1!]/g, 'i').replace(/[3]/g, 'e').replace(/[5$]/g, 's');
+}
+function containsBlockedWord(text) {
+  const norm = normalizeForFilter(text);
+  return CHAT_BLOCKLIST.some(w => new RegExp('\\b' + w + '\\b', 'i').test(norm));
+}
+function isSpammyMessage(text) {
+  const compact = text.replace(/\s/g, '');
+  if (/^(.)\1{4,}$/.test(compact)) return true; // z.B. "aaaaaa" oder "!!!!!!"
+  if (text.length > 10 && /^[A-ZÄÖÜ0-9\s!?.,]+$/.test(text)) return true; // reiner Großbuchstaben-Spam
+  return false;
+}
+
+/* ============================================================
+   NIKOLAUS- & WEIHNACHTS-COUNTDOWN (mit Fortschrittsbalken)
+   ============================================================ */
+function daysUntilDate(month, day) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let target = new Date(now.getFullYear(), month, day);
+  if (target < today) target = new Date(now.getFullYear() + 1, month, day);
+  return Math.round((target - today) / 86400000);
+}
+// Balken füllt sich über den GESAMTEN Zeitraum seit dem letzten Termin bis
+// zum nächsten (also übers ganze Jahr sichtbar wachsend, nicht erst in den
+// letzten paar Tagen).
+function countdownProgressPct(month, day) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let next = new Date(now.getFullYear(), month, day);
+  if (next < today) next = new Date(now.getFullYear() + 1, month, day);
+  const prev = new Date(next.getFullYear() - 1, month, day);
+  const totalCycleDays = (next - prev) / 86400000;
+  const elapsedDays = (today - prev) / 86400000;
+  return Math.max(0, Math.min(100, (elapsedDays / totalCycleDays) * 100));
+}
+function updateCountdowns() {
+  const nik = daysUntilDate(11, 6);   // 6. Dezember
+  const weih = daysUntilDate(11, 24); // Heiligabend, 24. Dezember
+  const nikEl = document.getElementById('countdown-nikolaus');
+  const weihEl = document.getElementById('countdown-weihnachten');
+  nikEl.textContent = nik === 0 ? '🎅 Heute ist Nikolaus!' : '🎅 Nikolaus in ' + nik + ' Tag' + (nik === 1 ? '' : 'en');
+  weihEl.textContent = weih === 0 ? '🎄 Heute ist Weihnachten!' : '🎄 Weihnachten in ' + weih + ' Tag' + (weih === 1 ? '' : 'en');
+  document.getElementById('countdown-nikolaus-fill').style.width = countdownProgressPct(11, 6) + '%';
+  document.getElementById('countdown-weihnachten-fill').style.width = countdownProgressPct(11, 24) + '%';
+  document.getElementById('countdown-summary-text').textContent = nik + 'T · ' + weih + 'T';
+  if (typeof layoutMobileHeader === 'function') layoutMobileHeader();
+}
+updateCountdowns();
+setInterval(updateCountdowns, 60 * 60 * 1000); // stündlich aktualisieren reicht völlig
+
+document.getElementById('countdown-summary').addEventListener('click', () => {
+  document.getElementById('countdown-badge').classList.toggle('expanded');
+  if (typeof layoutMobileHeader === 'function') layoutMobileHeader();
+});
+
+/* ============================================================
+   SAISONALES THEME: an Halloween (31.10.) schaltet die Seite automatisch
+   in einen spukigen Look um (eigene, nicht-lizenzierte Gestaltung).
+   Zum Testen außerhalb des 31.10.: die Seite mit ?halloween=1 am Ende
+   der URL öffnen, z.B. index.html?halloween=1
+   ============================================================ */
+const now0 = new Date();
+const urlParams = new URLSearchParams(window.location.search);
+const IS_HALLOWEEN = urlParams.get('halloween') === '1' ||
+  (now0.getMonth() === 9 && now0.getDate() === 31); // Monat 9 = Oktober (0-indexiert)
+if (IS_HALLOWEEN) document.body.classList.add('theme-halloween');
+
+let db = null;
+let treeDocRef = null;
+let chatCollectionRef = null;
+let presenceCollectionRef = null;
+let highscoreCollectionRef = null;
+let slingshotCollectionRef = null;
+let flappyCollectionRef = null;
+let firebaseReady = false;
+let treeState = { level: 0, lastWateredAt: null, totalWaterings: 0, deadLevel: 0 };
+let onlineCount = 1;
+
+/* ---------- Firebase Init ---------- */
+function isConfigPlaceholder() {
+  return firebaseConfig.apiKey === "DEIN_API_KEY" || !firebaseConfig.apiKey;
+}
+
+if (isConfigPlaceholder()) {
+  document.getElementById('config-warning').style.display = 'block';
+} else {
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    treeDocRef = doc(db, "christmasTree", "global");
+    chatCollectionRef = collection(db, "christmasTreeChat");
+    presenceCollectionRef = collection(db, "christmasTreePresence");
+    highscoreCollectionRef = collection(db, "christmasTreeHighscores");
+    slingshotCollectionRef = collection(db, "christmasTreeSlingshotScores");
+    flappyCollectionRef = collection(db, "christmasTreeFlappyScores");
+    firebaseReady = true;
+  } catch (e) {
+    console.error("Firebase-Init fehlgeschlagen:", e);
+    showToast("❌ Firebase-Verbindung fehlgeschlagen. Konfiguration prüfen.");
+  }
+}
+
+/* ---------- Mobile-Erkennung ---------- */
+// Kombiniert Bildschirmbreite (matchMedia, reagiert auch auf Fenster-Größenänderung/
+// Rotation) mit einer klassischen User-Agent-Prüfung als zusätzliches Signal.
+const mobileMediaQuery = window.matchMedia('(max-width: 640px)');
+function updateMobileClass() {
+  const wasMobile = document.body.classList.contains('is-mobile');
+  const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = mobileMediaQuery.matches || isMobileUA;
+  document.body.classList.toggle('is-mobile', isMobile);
+  if (isMobile !== wasMobile) {
+    // Moduswechsel: alte, per JS gesetzte Positionswerte des jeweils anderen
+    // Modus entfernen, damit die passenden CSS-Regeln wieder greifen.
+    ['mystery-gift-panel', 'highscore-panel', 'highscore-panel-2', 'countdown-badge',
+     'top-right-controls', 'top-controls-bar', 'config-warning', 'toast-container'
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.style.top = '';
+    });
+  }
+  layoutMobileHeader();
+  layoutLeftStack();
+}
+updateMobileClass();
+mobileMediaQuery.addEventListener('change', updateMobileClass);
+window.addEventListener('orientationchange', () => setTimeout(updateMobileClass, 200));
+window.addEventListener('resize', updateMobileClass);
+
+/* Ordnet auf dem Handy Titel, Countdown-Badge, die rechten Icon-Buttons und
+   das Gießfeld untereinander an, statt sie mit festen top-Werten zu
+   überlagern. Jede Zeile wird anhand der tatsächlichen Höhe der Zeile
+   darüber berechnet – so passt es sich automatisch an, egal wie lang der
+   Countdown-Text gerade ist oder ob der Titel einmal umbricht. */
+function layoutMobileHeader() {
+  if (!document.body.classList.contains('is-mobile')) return;
+  const title = document.querySelector('h1.title');
+  const countdown = document.getElementById('countdown-badge');
+  const topRight = document.getElementById('top-right-controls');
+  const bar = document.getElementById('top-controls-bar');
+  const configWarning = document.getElementById('config-warning');
+  const toasts = document.getElementById('toast-container');
+  if (!title || !countdown || !topRight || !bar) return;
+  const gap = 8;
+
+  const titleRect = title.getBoundingClientRect();
+  const row2Top = titleRect.bottom + gap;
+  countdown.style.top = row2Top + 'px';
+  topRight.style.top = row2Top + 'px';
+
+  const countdownRect = countdown.getBoundingClientRect();
+  const topRightRect = topRight.getBoundingClientRect();
+  const row3Top = Math.max(countdownRect.bottom, topRightRect.bottom) + gap;
+  bar.style.top = row3Top + 'px';
+
+  const barRect = bar.getBoundingClientRect();
+  const row4Top = barRect.bottom + gap;
+  if (configWarning) configWarning.style.top = row4Top + 'px';
+  if (toasts) toasts.style.top = row4Top + 'px';
+}
+// Google Font lädt asynchron nach - Titelhöhe kann sich dadurch kurz
+// verändern, daher nach dem Laden noch einmal neu berechnen.
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(layoutMobileHeader);
+}
+setTimeout(layoutMobileHeader, 500);
+
+/* ---------- Nickname (nur kosmetisch, keine Anmeldung nötig) ---------- */
+function getOrCreateNickname() {
+  const key = 'xmas_nick_v1';
+  let nick = localStorage.getItem(key);
+  if (!nick) {
+    const adjectives = ['Fröhliche(r)', 'Flauschige(r)', 'Glitzernde(r)', 'Warme(r)', 'Zauberhafte(r)', 'Schneeige(r)'];
+    const nouns = ['Elf', 'Rentier', 'Schneemann', 'Wichtel', 'Sternenfreund', 'Kerze'];
+    nick = adjectives[Math.floor(Math.random()*adjectives.length)] + ' ' +
+           nouns[Math.floor(Math.random()*nouns.length)] + ' #' + Math.floor(Math.random()*900+100);
+    localStorage.setItem(key, nick);
+  }
+  return nick;
+}
+const localNickname = getOrCreateNickname();
+
+/* ---------- Client-ID (für Presence/Online-Zählung, kein Login) ---------- */
+function getOrCreateClientId() {
+  const key = 'xmas_client_id_v1';
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID() : 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+const localClientId = getOrCreateClientId();
+
+/* ---------- Presence: wie viele Personen sind gerade wirklich online? ----------
+   Firestore hat keine eingebaute Online-Erkennung wie die Realtime Database.
+   Als einfacher Workaround schreibt jeder Client alle 20s einen "Herzschlag"
+   in ein eigenes Dokument. Als "online" zählt, wer in den letzten 45s aktiv war. */
+async function sendHeartbeat() {
+  if (!firebaseReady) return;
+  try {
+    await setDoc(doc(db, "christmasTreePresence", localClientId), {
+      lastActive: serverTimestamp()
+    }, { merge: true });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function subscribeToPresence() {
+  if (!firebaseReady) return;
+  onSnapshot(presenceCollectionRef, (snap) => {
+    const now = Date.now();
+    let count = 0;
+    snap.forEach((d) => {
+      const data = d.data();
+      const last = data.lastActive ? data.lastActive.toMillis() : 0;
+      if (now - last < PRESENCE_TIMEOUT_MS) count++;
+    });
+    onlineCount = Math.max(1, count); // man selbst zählt immer als online
+    document.getElementById('online-badge').textContent = '👥 ' + onlineCount + (onlineCount === 1 ? ' Person online' : ' Personen online');
+    setPeopleCount(Math.min(MAX_VISIBLE_PEOPLE, onlineCount));
+  }, (err) => console.error(err));
+}
+
+/* ---------- Firestore Logik: Highscore-Liste des Minispiels ---------- */
+function subscribeToHighscores() {
+  if (!firebaseReady) return;
+  const q = query(highscoreCollectionRef, orderBy('score', 'desc'), limit(10));
+  onSnapshot(q, (snap) => {
+    const scores = [];
+    snap.forEach((d) => scores.push(d.data()));
+    renderHighscoreList(document.getElementById('highscore-list'), scores.slice(0, 5));
+    renderHighscoreList(document.getElementById('minigame-highscores-list'), scores);
+  }, (err) => console.error(err));
+}
+function renderHighscoreList(listEl, scores) {
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  if (scores.length === 0) {
+    listEl.innerHTML = '<li class="hs-empty">Noch keine Einträge</li>';
+    return;
+  }
+  scores.forEach((s, i) => {
+    const li = document.createElement('li');
+    const rank = document.createElement('span'); rank.className = 'hs-rank'; rank.textContent = (i + 1) + '.';
+    const name = document.createElement('span'); name.className = 'hs-name'; name.textContent = s.name || '?????';
+    const score = document.createElement('span'); score.className = 'hs-score'; score.textContent = s.score;
+    li.appendChild(rank); li.appendChild(name); li.appendChild(score);
+    listEl.appendChild(li);
+  });
+}
+async function saveHighscore(name, score) {
+  if (!firebaseReady) { showToast('⚠️ Highscore konnte nicht gespeichert werden (nicht verbunden).'); return; }
+  try {
+    await addDoc(highscoreCollectionRef, { name, score, ts: serverTimestamp() });
+    showToast('🏆 Highscore gespeichert!');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Highscore konnte nicht gespeichert werden.');
+  }
+}
+
+function subscribeToSlingshotScores() {
+  if (!firebaseReady) return;
+  const q = query(slingshotCollectionRef, orderBy('score', 'desc'), limit(10));
+  onSnapshot(q, (snap) => {
+    const scores = [];
+    snap.forEach((d) => scores.push(d.data()));
+    renderHighscoreList(document.getElementById('highscore-list-2'), scores.slice(0, 5));
+    renderHighscoreList(document.getElementById('minigame2-highscores-list'), scores);
+  }, (err) => console.error(err));
+}
+async function saveSlingshotScore(name, score) {
+  if (!firebaseReady) { showToast('⚠️ Highscore konnte nicht gespeichert werden (nicht verbunden).'); return; }
+  try {
+    await addDoc(slingshotCollectionRef, { name, score, ts: serverTimestamp() });
+    showToast('🏆 Highscore gespeichert!');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Highscore konnte nicht gespeichert werden.');
+  }
+}
+
+function subscribeToFlappyScores() {
+  if (!firebaseReady) return;
+  const q = query(flappyCollectionRef, orderBy('score', 'desc'), limit(10));
+  onSnapshot(q, (snap) => {
+    const scores = [];
+    snap.forEach((d) => scores.push(d.data()));
+    renderHighscoreList(document.getElementById('highscore-list-3'), scores.slice(0, 5));
+    renderHighscoreList(document.getElementById('minigame3-highscores-list'), scores);
+  }, (err) => console.error(err));
+}
+async function saveFlappyScore(name, score) {
+  if (!firebaseReady) { showToast('⚠️ Highscore konnte nicht gespeichert werden (nicht verbunden).'); return; }
+  try {
+    await addDoc(flappyCollectionRef, { name, score, ts: serverTimestamp() });
+    showToast('🏆 Highscore gespeichert!');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Highscore konnte nicht gespeichert werden.');
+  }
+}
+
+
+async function ensureDocExists() {
+  if (!firebaseReady) return;
+  try {
+    const snap = await getDoc(treeDocRef);
+    if (!snap.exists()) {
+      await setDoc(treeDocRef, { level: 0, lastWateredAt: null, totalWaterings: 0, deadLevel: 0 });
+    }
+  } catch (e) {
+    console.error(e);
+    showToast("❌ Konnte keine Verbindung zu Firestore herstellen (Regeln prüfen?).");
+  }
+}
+
+async function waterTree() {
+  if (!firebaseReady) { showToast("⚠️ Firebase ist nicht konfiguriert."); return; }
+  try {
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(treeDocRef);
+      const data = snap.exists() ? snap.data() : { level: 0, lastWateredAt: null, totalWaterings: 0, deadLevel: 0, careBonusMs: 0 };
+      const now = Date.now();
+      const last = data.lastWateredAt ? data.lastWateredAt.toMillis() : 0;
+      const careBonus = data.careBonusMs || 0;
+      if (data.lastWateredAt && (now - last) < (WATER_COOLDOWN_MS - careBonus)) {
+        return { ok: false };
+      }
+      const newLevel = Math.min(MAX_LEVEL, (data.level || 0) + 1);
+      tx.set(treeDocRef, {
+        level: newLevel,
+        lastWateredAt: serverTimestamp(),
+        lastWateredBy: localNickname,
+        totalWaterings: (data.totalWaterings || 0) + 1,
+        deadLevel: 0,   // ein erfolgreiches Gießen beendet immer den "toten" Zustand
+        careBonusMs: 0  // Pflege-Bonus wird mit jedem Gießen zurückgesetzt
+      }, { merge: true });
+      return { ok: true, newLevel };
+    });
+    if (result.ok) {
+      playWaterSound();
+      showToast('💧 Danke ' + localNickname + '! Der Baum wächst — Stufe ' + result.newLevel + '.');
+    } else {
+      showToast('⏳ Der Baum wurde schon kürzlich gegossen. Bitte warte den Cooldown ab.');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Fehler beim Gießen: ' + e.message);
+  }
+}
+
+async function careForTree() {
+  if (!firebaseReady) { showToast('⚠️ Firebase ist nicht konfiguriert.'); return; }
+  try {
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(treeDocRef);
+      const data = snap.exists() ? snap.data() : {};
+      const now = Date.now();
+      const lastCare = data.lastCareAt ? data.lastCareAt.toMillis() : 0;
+      if (data.lastCareAt && (now - lastCare) < CARE_COOLDOWN_MS) {
+        return { ok: false, reason: 'cooldown' };
+      }
+      const last = data.lastWateredAt ? data.lastWateredAt.toMillis() : 0;
+      const currentBonus = data.careBonusMs || 0;
+      const nextWaterAt = last + WATER_COOLDOWN_MS - currentBonus;
+      if (!data.lastWateredAt || now >= nextWaterAt) {
+        return { ok: false, reason: 'not_needed' };
+      }
+      tx.set(treeDocRef, {
+        careBonusMs: currentBonus + CARE_BONUS_MS,
+        lastCareAt: serverTimestamp()
+      }, { merge: true });
+      return { ok: true };
+    });
+    if (result.ok) {
+      showToast('🌿 Danke fürs Pflegen! Der Gieß-Cooldown ist jetzt 15 Minuten kürzer.');
+    } else if (result.reason === 'cooldown') {
+      showToast('⏳ Pflegen ist im Cooldown – nur einmal pro Stunde möglich.');
+    } else {
+      showToast('🌿 Der Baum braucht gerade keine zusätzliche Pflege.');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Fehler beim Pflegen: ' + e.message);
+  }
+}
+
+async function checkDecay(data) {
+  if (!firebaseReady || !data || !data.lastWateredAt) return;
+  const now = Date.now();
+  const last = data.lastWateredAt.toMillis();
+  if (now - last >= TOTAL_TIMEOUT_MS && data.level > 0) {
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(treeDocRef);
+        const d = snap.data();
+        const last2 = d.lastWateredAt ? d.lastWateredAt.toMillis() : 0;
+        if (d.lastWateredAt && (Date.now() - last2) >= TOTAL_TIMEOUT_MS && d.level > 0) {
+          // Baum "stirbt": Level auf 0, aber die letzte Größe wird in deadLevel
+          // gemerkt, damit der Baum optisch in dieser Größe (nur verwelkt) stehen bleibt.
+          tx.set(treeDocRef, { level: 0, lastWateredAt: null, deadLevel: d.level }, { merge: true });
+        }
+      });
+      // Toast + Nadel-Effekt werden zentral im onSnapshot-Handler ausgelöst,
+      // damit ALLE Clients (nicht nur der Ausführende) das Verwelken sehen.
+    } catch (e) {
+      console.error(e);
+    }
+  }
+}
+
+function subscribeToTree() {
+  if (!firebaseReady) return;
+  onSnapshot(treeDocRef, (snap) => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    const prevLevel = treeState.level || 0;
+    const prevDeadLevel = treeState.deadLevel || 0;
+    const newLevel = data.level || 0;
+    const newDeadLevel = data.deadLevel || 0;
+
+    treeState = data;
+    updateTimerUI(data);
+
+    if (!firstSnapshotReceived) {
+      displayedLevel = newDeadLevel > 0 ? newDeadLevel : newLevel;
+      lastDrawnLevel = -1; // erzwingt initiales Zeichnen
+      firstSnapshotReceived = true;
+    }
+
+    if (newDeadLevel > 0 && prevDeadLevel === 0) {
+      // Der Baum ist gerade eben verwelkt
+      showToast('🥀 Niemand hat rechtzeitig gegossen – der Baum ist verwelkt.');
+      triggerCollapseBurst();
+    } else if (newLevel > prevLevel) {
+      if (prevDeadLevel > 0 && newDeadLevel === 0) {
+        showToast('🌱 ' + (data.lastWateredBy || 'Jemand') + ' hat den Baum gerettet! Ein neuer Sämling wächst heran.');
+      }
+      playGrowSound();
+    }
+  }, (err) => {
+    console.error(err);
+    showToast('❌ Verbindung zu Firestore verloren. Regeln/Konfiguration prüfen.');
+  });
+}
+
+/* ---------- Firestore Logik: Chat ---------- */
+let chatFirstSnapshot = true;
+function subscribeToChat() {
+  if (!firebaseReady) return;
+  const q = query(chatCollectionRef, orderBy('ts', 'asc'), limitToLast(25));
+  onSnapshot(q, (snap) => {
+    const messages = [];
+    snap.forEach((d) => messages.push(d.data()));
+    renderChatMessages(messages);
+
+    // Auf dem Handy ist der Chat standardmäßig eingeklappt -> bei neuen
+    // Nachrichten einen kleinen roten Punkt am Chat-Button anzeigen.
+    if (!chatFirstSnapshot) {
+      const panel = document.getElementById('chat-panel');
+      const toggleBtn = document.getElementById('chat-toggle-btn');
+      if (document.body.classList.contains('is-mobile') && !panel.classList.contains('chat-open')) {
+        toggleBtn.classList.add('has-unread');
+      }
+    }
+    chatFirstSnapshot = false;
+  }, (err) => {
+    console.error(err);
+  });
+}
+
+document.getElementById('chat-toggle-btn').addEventListener('click', () => {
+  const panel = document.getElementById('chat-panel');
+  const toggleBtn = document.getElementById('chat-toggle-btn');
+  panel.classList.toggle('chat-open');
+  if (panel.classList.contains('chat-open')) {
+    toggleBtn.classList.remove('has-unread');
+  }
+});
+
+function renderChatMessages(messages) {
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = '';
+  for (const m of messages) {
+    const row = document.createElement('div');
+    row.className = 'chat-msg';
+    const nickSpan = document.createElement('span');
+    nickSpan.className = 'nick';
+    nickSpan.textContent = (m.nick || 'Anonym') + ': ';
+    const textSpan = document.createElement('span');
+    textSpan.textContent = m.text || '';
+    row.appendChild(nickSpan);
+    row.appendChild(textSpan);
+    container.appendChild(row);
+  }
+  container.scrollTop = container.scrollHeight;
+  layoutLeftStack();
+}
+
+/* Positioniert das Geschenk-Panel dynamisch direkt unter dem Chat-Panel
+   (dessen Höhe je nach Nachrichtenanzahl variiert), und die beiden
+   Highscore-Listen rechts unter den Minispiel-/Musik-/Info-Buttons.
+   Wird bei Resize, neuen Chat-Nachrichten und beim Öffnen/Schließen des
+   Geschenks neu berechnet. Auf dem Handy übernimmt das eigene mobile Layout. */
+function layoutLeftStack() {
+  if (document.body.classList.contains('is-mobile')) return;
+  const chat = document.getElementById('chat-panel');
+  const gift = document.getElementById('mystery-gift-panel');
+  const topRight = document.getElementById('top-right-controls');
+  const hs = document.getElementById('highscore-panel');
+  const hs2 = document.getElementById('highscore-panel-2');
+  const hs3 = document.getElementById('highscore-panel-3');
+  if (!chat || !gift || !topRight || !hs || !hs2 || !hs3) return;
+  const gap = 12;
+
+  const chatRect = chat.getBoundingClientRect();
+  gift.style.top = (chatRect.bottom + gap) + 'px';
+
+  const topRightRect = topRight.getBoundingClientRect();
+  hs.style.top = (topRightRect.bottom + gap) + 'px';
+  const hsRect = hs.getBoundingClientRect();
+  hs2.style.top = (hsRect.bottom + gap) + 'px';
+  const hs2Rect = hs2.getBoundingClientRect();
+  hs3.style.top = (hs2Rect.bottom + gap) + 'px';
+}
+
+let lastChatSentAt = 0;
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim().slice(0, CHAT_MAX_LEN);
+  if (!text) return;
+  if (!firebaseReady) { showToast('⚠️ Chat ist nicht verbunden.'); return; }
+  if (containsBlockedWord(text)) {
+    showToast('🚫 Bitte wähle andere Worte für den Chat.');
+    return;
+  }
+  if (isSpammyMessage(text)) {
+    showToast('🚫 Bitte keine Zeichen-Spam-Nachrichten.');
+    return;
+  }
+  const now = Date.now();
+  if (now - lastChatSentAt < 3000) {
+    showToast('⏳ Bitte kurz warten, bevor du erneut schreibst.');
+    return;
+  }
+  lastChatSentAt = now;
+  input.value = '';
+  updateChatCharCount();
+  try {
+    await addDoc(chatCollectionRef, { nick: localNickname, text, ts: serverTimestamp() });
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Nachricht konnte nicht gesendet werden.');
+  }
+}
+
+function updateChatCharCount() {
+  const input = document.getElementById('chat-input');
+  document.getElementById('chat-charcount').textContent = input.value.length + '/' + CHAT_MAX_LEN;
+}
+
+document.getElementById('chat-send-btn').addEventListener('click', sendChatMessage);
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendChatMessage();
+});
+document.getElementById('chat-input').addEventListener('input', updateChatCharCount);
+
+/* ============================================================
+   2) UI HELFER
+   ============================================================ */
+function formatDuration(ms) {
+  if (ms < 0) ms = 0;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+const waterBtn = document.getElementById('water-btn');
+const careBtn = document.getElementById('care-btn');
+const levelLabel = document.getElementById('level-label');
+const timerLabel = document.getElementById('timer-label');
+const warningLabel = document.getElementById('warning-label');
+const progressFill = document.getElementById('progress-fill');
+
+function computeWiltProgress(data) {
+  if (!data || !data.lastWateredAt) return 0;
+  const now = Date.now();
+  const last = data.lastWateredAt.toMillis();
+  const careBonus = data.careBonusMs || 0;
+  const cooldownEnd = last + WATER_COOLDOWN_MS - careBonus;
+  const decayAt = last + TOTAL_TIMEOUT_MS; // Verfall-Zeitpunkt bleibt vom Pflegen unberührt
+  if (now <= cooldownEnd) return 0;
+  if (now >= decayAt) return 1;
+  return (now - cooldownEnd) / (decayAt - cooldownEnd);
+}
+
+function updateTimerUI(data) {
+  const level = data.level || 0;
+  const isDeadNow = level === 0 && (data.deadLevel || 0) > 0;
+  levelLabel.textContent = isDeadNow
+    ? '🥀 Verwelkt (war Stufe ' + data.deadLevel + ')'
+    : 'Stufe ' + level + ' / 100';
+  progressFill.style.width = (isDeadNow ? data.deadLevel : level) + '%';
+
+  const now = Date.now();
+  const last = data.lastWateredAt ? data.lastWateredAt.toMillis() : 0;
+  const careBonus = data.careBonusMs || 0;
+  const nextWaterAt = last + WATER_COOLDOWN_MS - careBonus;
+  const decayAt = last + TOTAL_TIMEOUT_MS; // 12h-Verfall-Timer, startet direkt beim Gießen
+
+  if (!data.lastWateredAt || now >= nextWaterAt) {
+    waterBtn.disabled = false;
+    waterBtn.classList.add('ready');
+    timerLabel.textContent = !firebaseReady ? '⚠️ Nicht verbunden' : (isDeadNow ? '💧 Jetzt retten!' : '💧 Bereit zum Gießen!');
+  } else {
+    waterBtn.disabled = true;
+    waterBtn.classList.remove('ready');
+    timerLabel.textContent = 'Nächstes Gießen in ' + formatDuration(nextWaterAt - now);
+  }
+
+  // Verfall-Countdown: durchgehend sichtbar ab dem Gießen (volle 12h), nicht erst nach Cooldown-Ende.
+  // In den letzten 2 Stunden wird er rot/dringlich.
+  if (data.lastWateredAt && level > 0 && now < decayAt) {
+    const remaining = decayAt - now;
+    const urgent = remaining <= DECAY_URGENT_MS;
+    warningLabel.style.display = 'block';
+    warningLabel.classList.toggle('urgent', urgent);
+    warningLabel.textContent = (urgent ? '🔴 JETZT GIESSEN – ' : '🌳 Baum verwelkt in ') + formatDuration(remaining) + (urgent ? '!' : '');
+  } else {
+    warningLabel.style.display = 'none';
+    warningLabel.classList.remove('urgent');
+  }
+
+  updateCareButtonUI(data);
+}
+
+function updateCareButtonUI(data) {
+  const now = Date.now();
+  const last = data.lastWateredAt ? data.lastWateredAt.toMillis() : 0;
+  const careBonus = data.careBonusMs || 0;
+  const lastCare = data.lastCareAt ? data.lastCareAt.toMillis() : 0;
+  const careOnCooldown = data.lastCareAt && (now - lastCare) < CARE_COOLDOWN_MS;
+  const cooldownActive = data.lastWateredAt && now < (last + WATER_COOLDOWN_MS - careBonus);
+
+  careBtn.disabled = !firebaseReady || careOnCooldown || !cooldownActive;
+  careBtn.title = !cooldownActive
+    ? 'Pflegen ist gerade nicht nötig (kein aktiver Gieß-Cooldown)'
+    : careOnCooldown
+      ? 'Pflegen ist noch ' + formatDuration(CARE_COOLDOWN_MS - (now - lastCare)) + ' gesperrt'
+      : 'Pflegen: verkürzt den Gieß-Cooldown sofort um 15 Minuten';
+}
+
+const toastContainer = document.getElementById('toast-container');
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  toastContainer.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 350);
+  }, 3600);
+}
+
+waterBtn.addEventListener('click', waterTree);
+careBtn.addEventListener('click', careForTree);
+
+document.getElementById('info-btn').addEventListener('click', () => {
+  document.getElementById('modal-backdrop').classList.add('show');
+});
+document.getElementById('info-close-btn').addEventListener('click', () => {
+  document.getElementById('modal-backdrop').classList.remove('show');
+});
+document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-backdrop') e.currentTarget.classList.remove('show');
+});
+
+/* ============================================================
+   3) AUDIO — synthetisierte Musik & Soundeffekte (Web Audio API)
+   ============================================================ */
+let audioCtx = null;
+let musicGain = null;
+let musicOn = false;
+let musicTimer = null;
+let musicStep = 0;
+
+const NOTE_FREQ = {
+  C4:261.63, D4:293.66, E4:329.63, F4:349.23, G4:392.00, A4:440.00, B4:493.88, Bb4:466.16,
+  C5:523.25, D5:587.33, E5:659.25, F5:698.46, G5:783.99,
+  C3:130.81, D3:146.83, F3:174.61, A3:220.00
+};
+// Traditionelle, gemeinfreie Melodie ("Jingle Bells"-Motiv), als einfache Notenfolge
+const MELODY = [
+  'E4','E4','E4', null, 'E4','E4','E4', null, 'E4','G4','C4','D4','E4', null, null, null,
+  'F4','F4','F4','F4','F4','E4','E4','E4','E4','D4','D4','E4','D4','G4', null, null
+];
+// Eigene, originell komponierte schaurige Melodie für den Halloween-Modus
+// (keine Filmmusik – frei erfunden in Moll mit chromatischen Tönen)
+const SPOOKY_MELODY = [
+  'D3', null, 'F3', null, 'A3', null, 'D4', null,
+  'C4', null, 'Bb4', null, 'A3', null, null, null,
+  'D3', null, 'F3', null, 'A3', null, 'F4', null,
+  'E4', null, 'D4', null, 'C4', null, null, null
+];
+
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0.35;
+    musicGain.connect(audioCtx.destination);
+  }
+}
+
+function playNote(freq, duration, waveType) {
+  if (!freq || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = waveType || 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+  osc.connect(gain).connect(musicGain);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration + 0.05);
+}
+
+document.getElementById('music-btn').addEventListener('click', () => {
+  initAudio();
+  musicOn = !musicOn;
+  const btn = document.getElementById('music-btn');
+  if (musicOn) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    musicStep = 0;
+    const activeMelody = IS_HALLOWEEN ? SPOOKY_MELODY : MELODY;
+    const tempo = IS_HALLOWEEN ? 380 : 300;
+    const waveType = IS_HALLOWEEN ? 'sawtooth' : 'triangle';
+    musicTimer = setInterval(() => {
+      playNote(NOTE_FREQ[activeMelody[musicStep % activeMelody.length]], 0.3, waveType);
+      musicStep++;
+    }, tempo);
+    btn.textContent = '🔊';
+  } else {
+    clearInterval(musicTimer);
+    btn.textContent = '🔇';
+  }
+});
+
+function playWaterSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(700, now);
+  osc.frequency.exponentialRampToValueAtTime(220, now + 0.35);
+  gain.gain.setValueAtTime(0.25, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.45);
+}
+
+function playGrowSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    const t0 = now + i * 0.09;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.35);
+  });
+}
+
+function playCatchGiftSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  [784, 988, 1175].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    const t0 = now + i * 0.045;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(0.25, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.2);
+  });
+}
+function playCatchPoopSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.exponentialRampToValueAtTime(70, now + 0.28);
+  gain.gain.setValueAtTime(0.18, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.32);
+}
+function playMinigameOverSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    const t0 = now + i * 0.1;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.35);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.4);
+  });
+}
+
+/* ============================================================
+   MINISPIEL: "Geschenke fangen" — Sack-Cursor fängt fallende
+   Geschenke (+Punkte) und weicht Kackhaufen aus (-Punkte).
+   Läuft komplett unabhängig von der Pixi-Baumszene auf einem
+   eigenen <canvas>, mit eigener requestAnimationFrame-Schleife.
+   ============================================================ */
+const mgCanvas = document.getElementById('minigame-canvas');
+const mgCtx = mgCanvas.getContext('2d');
+const MG_DURATION_S = 60;
+const MG_SACK_WIDTH = 64, MG_SACK_HEIGHT = 46;
+
+let mg = {
+  running: false,
+  score: 0,
+  timeLeft: MG_DURATION_S,
+  items: [],
+  sackX: mgCanvas.width / 2,
+  spawnTimer: 0,
+  spawnInterval: 900,
+  popups: [],
+  lastFrameTime: 0,
+  rafId: null,
+  startTime: 0
+};
+
+function mgResetState() {
+  mg.running = false;
+  mg.score = 0;
+  mg.timeLeft = MG_DURATION_S;
+  mg.items = [];
+  mg.popups = [];
+  mg.spawnTimer = 0;
+  mg.spawnInterval = 900;
+  mg.sackX = mgCanvas.width / 2;
+}
+
+function mgSpawnItem() {
+  const isGift = Math.random() < 0.72; // Geschenke häufiger als Kackhaufen
+  mg.items.push({
+    x: 24 + Math.random() * (mgCanvas.width - 48),
+    y: -20,
+    vy: 90 + Math.random() * 70 + (MG_DURATION_S - mg.timeLeft) * 1.1, // wird mit der Zeit etwas schneller
+    type: isGift ? 'gift' : 'poop',
+    size: isGift ? 26 : 24,
+    rot: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 2
+  });
+}
+
+function mgDrawGift(x, y, size) {
+  const s = size;
+  mgCtx.save();
+  mgCtx.translate(x, y);
+  mgCtx.fillStyle = '#d63b3b';
+  mgCtx.fillRect(-s/2, -s/2, s, s);
+  mgCtx.fillStyle = '#ffd24d';
+  mgCtx.fillRect(-s/2, -3, s, 6);
+  mgCtx.fillRect(-3, -s/2, 6, s);
+  mgCtx.beginPath();
+  mgCtx.ellipse(-6, -s/2, 5, 4, 0, 0, Math.PI * 2);
+  mgCtx.ellipse(6, -s/2, 5, 4, 0, 0, Math.PI * 2);
+  mgCtx.fill();
+  mgCtx.restore();
+}
+function mgDrawPoop(x, y, size) {
+  const s = size;
+  mgCtx.save();
+  mgCtx.translate(x, y);
+  mgCtx.fillStyle = '#6b4a2b';
+  mgCtx.beginPath();
+  mgCtx.ellipse(0, s * 0.28, s * 0.42, s * 0.24, 0, 0, Math.PI * 2);
+  mgCtx.ellipse(0, s * 0.02, s * 0.32, s * 0.22, 0, 0, Math.PI * 2);
+  mgCtx.ellipse(0, -s * 0.22, s * 0.2, s * 0.16, 0, 0, Math.PI * 2);
+  mgCtx.fill();
+  mgCtx.fillStyle = '#fff';
+  mgCtx.beginPath();
+  mgCtx.arc(-s * 0.08, -s * 0.02, s * 0.06, 0, Math.PI * 2);
+  mgCtx.arc(s * 0.1, -s * 0.02, s * 0.06, 0, Math.PI * 2);
+  mgCtx.fill();
+  mgCtx.fillStyle = '#000';
+  mgCtx.beginPath();
+  mgCtx.arc(-s * 0.08, -s * 0.02, s * 0.03, 0, Math.PI * 2);
+  mgCtx.arc(s * 0.1, -s * 0.02, s * 0.03, 0, Math.PI * 2);
+  mgCtx.fill();
+  mgCtx.restore();
+}
+function mgDrawSack(x, y) {
+  mgCtx.save();
+  mgCtx.translate(x, y);
+  mgCtx.fillStyle = '#8a5a2b';
+  mgCtx.beginPath();
+  mgCtx.moveTo(-MG_SACK_WIDTH * 0.22, -MG_SACK_HEIGHT * 0.4);
+  mgCtx.quadraticCurveTo(-MG_SACK_WIDTH * 0.55, 0, -MG_SACK_WIDTH * 0.42, MG_SACK_HEIGHT * 0.42);
+  mgCtx.quadraticCurveTo(0, MG_SACK_HEIGHT * 0.6, MG_SACK_WIDTH * 0.42, MG_SACK_HEIGHT * 0.42);
+  mgCtx.quadraticCurveTo(MG_SACK_WIDTH * 0.55, 0, MG_SACK_WIDTH * 0.22, -MG_SACK_HEIGHT * 0.4);
+  mgCtx.closePath();
+  mgCtx.fill();
+  mgCtx.strokeStyle = '#5a3a1a';
+  mgCtx.lineWidth = 2;
+  mgCtx.beginPath();
+  mgCtx.moveTo(-MG_SACK_WIDTH * 0.22, -MG_SACK_HEIGHT * 0.4);
+  mgCtx.lineTo(MG_SACK_WIDTH * 0.22, -MG_SACK_HEIGHT * 0.4);
+  mgCtx.stroke();
+  mgCtx.strokeStyle = '#d4af37';
+  mgCtx.lineWidth = 3;
+  mgCtx.beginPath();
+  mgCtx.moveTo(-MG_SACK_WIDTH * 0.24, -MG_SACK_HEIGHT * 0.42);
+  mgCtx.lineTo(MG_SACK_WIDTH * 0.24, -MG_SACK_HEIGHT * 0.42);
+  mgCtx.stroke();
+  mgCtx.restore();
+}
+
+function mgGetSackRect() {
+  return {
+    left: mg.sackX - MG_SACK_WIDTH / 2,
+    right: mg.sackX + MG_SACK_WIDTH / 2,
+    top: mgCanvas.height - 58,
+    bottom: mgCanvas.height - 12
+  };
+}
+
+function mgUpdate(dtMs) {
+  mg.spawnTimer += dtMs;
+  if (mg.spawnTimer >= mg.spawnInterval) {
+    mg.spawnTimer = 0;
+    mgSpawnItem();
+    mg.spawnInterval = Math.max(380, mg.spawnInterval - 6); // wird über die Zeit schneller
+  }
+
+  const sackRect = mgGetSackRect();
+  for (let i = mg.items.length - 1; i >= 0; i--) {
+    const it = mg.items[i];
+    it.y += it.vy * (dtMs / 1000);
+    it.rot += it.rotSpeed * (dtMs / 1000);
+
+    const caught = it.y + it.size / 2 > sackRect.top && it.y < sackRect.bottom &&
+      it.x > sackRect.left && it.x < sackRect.right;
+
+    if (caught) {
+      if (it.type === 'gift') {
+        const pts = 10 + Math.floor(Math.random() * 6);
+        mg.score += pts;
+        playCatchGiftSound();
+        mg.popups.push({ x: it.x, y: it.y, text: '+' + pts, color: '#66ff8a', life: 0 });
+      } else {
+        const pts = 8 + Math.floor(Math.random() * 5);
+        mg.score -= pts;
+        playCatchPoopSound();
+        mg.popups.push({ x: it.x, y: it.y, text: '-' + pts, color: '#ff6b6b', life: 0 });
+      }
+      mg.items.splice(i, 1);
+      continue;
+    }
+    if (it.y > mgCanvas.height + 30) mg.items.splice(i, 1);
+  }
+
+  for (let i = mg.popups.length - 1; i >= 0; i--) {
+    mg.popups[i].life += dtMs;
+    mg.popups[i].y -= dtMs * 0.03;
+    if (mg.popups[i].life > 700) mg.popups.splice(i, 1);
+  }
+}
+
+function mgDraw() {
+  const w = mgCanvas.width, h = mgCanvas.height;
+  mgCtx.clearRect(0, 0, w, h);
+
+  // dezenter Sternenhimmel-Hintergrund
+  mgCtx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 22; i++) {
+    const sx = (i * 53.7) % w, sy = (i * 91.3) % (h * 0.6);
+    mgCtx.fillRect(sx, sy, 1.5, 1.5);
+  }
+
+  for (const it of mg.items) {
+    if (it.type === 'gift') mgDrawGift(it.x, it.y, it.size);
+    else mgDrawPoop(it.x, it.y, it.size);
+  }
+
+  mgDrawSack(mg.sackX, mgCanvas.height - 34);
+
+  mgCtx.textAlign = 'center';
+  for (const p of mg.popups) {
+    mgCtx.globalAlpha = Math.max(0, 1 - p.life / 700);
+    mgCtx.fillStyle = p.color;
+    mgCtx.font = 'bold 16px Quicksand, sans-serif';
+    mgCtx.fillText(p.text, p.x, p.y);
+  }
+  mgCtx.globalAlpha = 1;
+
+  mgCtx.textAlign = 'left';
+  mgCtx.fillStyle = '#ffd27a';
+  mgCtx.font = 'bold 15px Quicksand, sans-serif';
+  mgCtx.fillText('🎁 ' + mg.score, 10, 22);
+  mgCtx.textAlign = 'right';
+  const timeColor = mg.timeLeft <= 10 ? '#ff6b6b' : '#f2f0ea';
+  mgCtx.fillStyle = timeColor;
+  mgCtx.fillText('⏱ ' + Math.ceil(mg.timeLeft) + 's', w - 10, 22);
+}
+
+function mgLoop(now) {
+  if (!mg.running) return;
+  const dt = Math.min(50, now - mg.lastFrameTime); // Delta capping gegen Tab-Wechsel-Sprünge
+  mg.lastFrameTime = now;
+  mg.timeLeft -= dt / 1000;
+
+  if (mg.timeLeft <= 0) {
+    mg.timeLeft = 0;
+    mgUpdate(dt);
+    mgDraw();
+    mgEndGame();
+    return;
+  }
+
+  mgUpdate(dt);
+  mgDraw();
+  mg.rafId = requestAnimationFrame(mgLoop);
+}
+
+function mgSetSackFromClientX(clientX) {
+  const rect = mgCanvas.getBoundingClientRect();
+  const scale = mgCanvas.width / rect.width;
+  const localX = (clientX - rect.left) * scale;
+  mg.sackX = Math.max(MG_SACK_WIDTH / 2, Math.min(mgCanvas.width - MG_SACK_WIDTH / 2, localX));
+}
+mgCanvas.addEventListener('mousemove', (e) => mgSetSackFromClientX(e.clientX));
+mgCanvas.addEventListener('touchmove', (e) => {
+  if (e.touches[0]) mgSetSackFromClientX(e.touches[0].clientX);
+  e.preventDefault();
+}, { passive: false });
+
+function mgStartGame() {
+  mgResetState();
+  mg.running = true;
+  mg.lastFrameTime = performance.now();
+  document.getElementById('minigame-overlay').style.display = 'none';
+  document.getElementById('minigame-gameover').style.display = 'none';
+  mg.rafId = requestAnimationFrame(mgLoop);
+}
+
+function mgEndGame() {
+  mg.running = false;
+  if (mg.rafId) cancelAnimationFrame(mg.rafId);
+  playMinigameOverSound();
+  document.getElementById('minigame-final-score').textContent = mg.score + ' Punkte';
+  document.getElementById('minigame-gameover').style.display = 'block';
+  const nameInput = document.getElementById('minigame-name-input');
+  nameInput.value = '';
+  nameInput.focus();
+}
+
+document.getElementById('minigame-start-btn').addEventListener('click', mgStartGame);
+document.getElementById('minigame-restart-btn').addEventListener('click', mgStartGame);
+
+document.getElementById('minigame-save-btn').addEventListener('click', () => {
+  const input = document.getElementById('minigame-name-input');
+  const raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (!raw) { showToast('⚠️ Bitte 1–5 Buchstaben/Zahlen eingeben.'); return; }
+  saveHighscore(raw, mg.score);
+  document.getElementById('minigame-save-btn').disabled = true;
+});
+
+document.getElementById('minigame-btn').addEventListener('click', () => {
+  document.getElementById('minigame-backdrop').classList.add('show');
+  document.getElementById('minigame-save-btn').disabled = false;
+  mgResetState();
+  mgDraw();
+  document.getElementById('minigame-overlay').style.display = 'flex';
+  document.getElementById('minigame-gameover').style.display = 'none';
+});
+document.getElementById('minigame-close-btn').addEventListener('click', () => {
+  document.getElementById('minigame-backdrop').classList.remove('show');
+  mg.running = false;
+  if (mg.rafId) cancelAnimationFrame(mg.rafId);
+});
+document.getElementById('minigame-backdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'minigame-backdrop') {
+    document.getElementById('minigame-backdrop').classList.remove('show');
+    mg.running = false;
+    if (mg.rafId) cancelAnimationFrame(mg.rafId);
+  }
+});
+
+/* ============================================================
+   MINISPIEL 2: "Kopf-Ziel: Zwille" — mit der Zwille auf den
+   grün-grummeligen Unruhestifter zielen (+Punkte), Weihnachtsmann/
+   Elfen/Rudolph verschonen (−Punkte bei Treffer). Eigenständige
+   Engine, eigenes <canvas>, eigene Highscore-Collection.
+   ============================================================ */
+function playSlingshotFireSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(180, now);
+  osc.frequency.exponentialRampToValueAtTime(520, now + 0.08);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.14);
+}
+function playGoodHitSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  [440, 660, 880].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = f;
+    const t0 = now + i * 0.05;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(0.2, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.15);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.17);
+  });
+}
+function playBadHitSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(300, now);
+  osc.frequency.exponentialRampToValueAtTime(90, now + 0.3);
+  gain.gain.setValueAtTime(0.16, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.34);
+}
+
+const mg2Canvas = document.getElementById('minigame2-canvas');
+const mg2Ctx = mg2Canvas.getContext('2d');
+const MG2_DURATION_S = 60;
+const MG2_SLINGSHOT_X = mg2Canvas.width / 2, MG2_SLINGSHOT_Y = mg2Canvas.height - 26;
+const MG2_HOLES = [
+  { x: 66, y: 120 }, { x: 180, y: 96 }, { x: 294, y: 120 },
+  { x: 66, y: 236 }, { x: 180, y: 258 }, { x: 294, y: 236 }
+];
+const MG2_HEAD_TYPES = ['grinch', 'santa', 'elf', 'rudolph'];
+
+let mg2 = {
+  running: false, score: 0, timeLeft: MG2_DURATION_S,
+  heads: [], stones: [], popups: [],
+  spawnTimer: 0, spawnInterval: 650, lastFrameTime: 0, rafId: null
+};
+
+function mg2ResetState() {
+  mg2.running = false;
+  mg2.score = 0;
+  mg2.timeLeft = MG2_DURATION_S;
+  mg2.heads = [];
+  mg2.stones = [];
+  mg2.popups = [];
+  mg2.spawnTimer = 0;
+  mg2.spawnInterval = 650;
+}
+
+function mg2SpawnHead() {
+  const freeHoles = MG2_HOLES.map((h, i) => i).filter(i => !mg2.heads.some(h => h.holeIndex === i));
+  if (freeHoles.length === 0) return;
+  const holeIndex = freeHoles[Math.floor(Math.random() * freeHoles.length)];
+  const isGrinch = Math.random() < 0.4;
+  const type = isGrinch ? 'grinch' : MG2_HEAD_TYPES[1 + Math.floor(Math.random() * 3)];
+  const maxLife = Math.max(550, 1000 - (MG2_DURATION_S - mg2.timeLeft) * 4);
+  mg2.heads.push({ holeIndex, type, life: 0, maxLife });
+}
+
+function mg2DrawFace(type, x, y, scale) {
+  mg2Ctx.save();
+  mg2Ctx.translate(x, y);
+  mg2Ctx.scale(scale, scale);
+  if (type === 'grinch') {
+    mg2Ctx.fillStyle = '#3f8a4a';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 0, 26, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.strokeStyle = '#2c6636'; mg2Ctx.lineWidth = 5;
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(-16, -12); mg2Ctx.quadraticCurveTo(0, -24, 16, -10); mg2Ctx.stroke();
+    mg2Ctx.fillStyle = '#ffe14d';
+    mg2Ctx.beginPath(); mg2Ctx.ellipse(-9, -2, 5, 6, 0, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.beginPath(); mg2Ctx.ellipse(9, -2, 5, 6, 0, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#1a1a1a';
+    mg2Ctx.beginPath(); mg2Ctx.arc(-9, -2, 2.2, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.beginPath(); mg2Ctx.arc(9, -2, 2.2, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.strokeStyle = '#1a1a1a'; mg2Ctx.lineWidth = 2.5;
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(-14, 12); mg2Ctx.quadraticCurveTo(0, 22, 16, 8); mg2Ctx.stroke();
+    mg2Ctx.fillStyle = '#fff';
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(2, 15); mg2Ctx.lineTo(6, 10); mg2Ctx.lineTo(9, 15); mg2Ctx.closePath(); mg2Ctx.fill();
+  } else if (type === 'santa') {
+    mg2Ctx.fillStyle = '#ffcf9e';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 4, 20, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#d63b3b';
+    mg2Ctx.beginPath();
+    mg2Ctx.moveTo(-22, -6); mg2Ctx.quadraticCurveTo(0, -34, 22, -6);
+    mg2Ctx.quadraticCurveTo(0, -14, -22, -6); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#fff';
+    mg2Ctx.beginPath(); mg2Ctx.arc(22, -6, 6, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillRect(-24, -8, 48, 6);
+    mg2Ctx.beginPath(); mg2Ctx.ellipse(0, 16, 18, 12, 0, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#ffe0c2';
+    mg2Ctx.beginPath(); mg2Ctx.arc(-8, 2, 2.5, 0, Math.PI * 2); mg2Ctx.arc(8, 2, 2.5, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#1a1a1a';
+    mg2Ctx.beginPath(); mg2Ctx.arc(-7, 0, 1.6, 0, Math.PI * 2); mg2Ctx.arc(7, 0, 1.6, 0, Math.PI * 2); mg2Ctx.fill();
+  } else if (type === 'elf') {
+    mg2Ctx.fillStyle = '#ffd9a8';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 4, 17, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#3aa15a';
+    mg2Ctx.beginPath();
+    mg2Ctx.moveTo(-15, -6); mg2Ctx.lineTo(0, -30); mg2Ctx.lineTo(15, -6); mg2Ctx.closePath(); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#ffe14d';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, -30, 3.5, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#ffd9a8';
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(-17, -2); mg2Ctx.lineTo(-24, 2); mg2Ctx.lineTo(-16, 6); mg2Ctx.closePath(); mg2Ctx.fill();
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(17, -2); mg2Ctx.lineTo(24, 2); mg2Ctx.lineTo(16, 6); mg2Ctx.closePath(); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#1a1a1a';
+    mg2Ctx.beginPath(); mg2Ctx.arc(-6, 3, 1.8, 0, Math.PI * 2); mg2Ctx.arc(6, 3, 1.8, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.strokeStyle = '#a8642a'; mg2Ctx.lineWidth = 2;
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 8, 6, 0, Math.PI); mg2Ctx.stroke();
+  } else { // rudolph
+    mg2Ctx.fillStyle = '#6b4a2b';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 2, 19, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.strokeStyle = '#4a3320'; mg2Ctx.lineWidth = 2;
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(-10, -14); mg2Ctx.lineTo(-16, -26); mg2Ctx.moveTo(-10, -14); mg2Ctx.lineTo(-4, -26); mg2Ctx.stroke();
+    mg2Ctx.beginPath(); mg2Ctx.moveTo(10, -14); mg2Ctx.lineTo(16, -26); mg2Ctx.moveTo(10, -14); mg2Ctx.lineTo(4, -26); mg2Ctx.stroke();
+    mg2Ctx.fillStyle = '#1a1a1a';
+    mg2Ctx.beginPath(); mg2Ctx.arc(-7, -2, 2, 0, Math.PI * 2); mg2Ctx.arc(7, -2, 2, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = '#ff2b2b';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 10, 5, 0, Math.PI * 2); mg2Ctx.fill();
+    mg2Ctx.fillStyle = 'rgba(255,43,43,0.3)';
+    mg2Ctx.beginPath(); mg2Ctx.arc(0, 10, 10, 0, Math.PI * 2); mg2Ctx.fill();
+  }
+  mg2Ctx.restore();
+}
+
+function mg2DrawSlingshot() {
+  mg2Ctx.strokeStyle = '#6b4a2b'; mg2Ctx.lineWidth = 6; mg2Ctx.lineCap = 'round';
+  mg2Ctx.beginPath();
+  mg2Ctx.moveTo(MG2_SLINGSHOT_X, MG2_SLINGSHOT_Y + 26);
+  mg2Ctx.lineTo(MG2_SLINGSHOT_X, MG2_SLINGSHOT_Y);
+  mg2Ctx.moveTo(MG2_SLINGSHOT_X, MG2_SLINGSHOT_Y);
+  mg2Ctx.lineTo(MG2_SLINGSHOT_X - 14, MG2_SLINGSHOT_Y - 20);
+  mg2Ctx.moveTo(MG2_SLINGSHOT_X, MG2_SLINGSHOT_Y);
+  mg2Ctx.lineTo(MG2_SLINGSHOT_X + 14, MG2_SLINGSHOT_Y - 20);
+  mg2Ctx.stroke();
+  mg2Ctx.strokeStyle = '#8a6a42'; mg2Ctx.lineWidth = 2;
+  mg2Ctx.beginPath();
+  mg2Ctx.moveTo(MG2_SLINGSHOT_X - 14, MG2_SLINGSHOT_Y - 20);
+  mg2Ctx.lineTo(MG2_SLINGSHOT_X, MG2_SLINGSHOT_Y - 8);
+  mg2Ctx.lineTo(MG2_SLINGSHOT_X + 14, MG2_SLINGSHOT_Y - 20);
+  mg2Ctx.stroke();
+}
+
+function mg2GetHitRadius() { return 30; }
+
+function mg2HandleShoot(clientX, clientY) {
+  if (!mg2.running) return;
+  const rect = mg2Canvas.getBoundingClientRect();
+  const scale = mg2Canvas.width / rect.width;
+  const x = (clientX - rect.left) * scale;
+  const y = (clientY - rect.top) * scale;
+
+  mg2.stones.push({ fromX: MG2_SLINGSHOT_X, fromY: MG2_SLINGSHOT_Y - 10, toX: x, toY: y, t: 0, duration: 170 });
+  playSlingshotFireSound();
+
+  const hitRadius = mg2GetHitRadius();
+  for (let i = 0; i < mg2.heads.length; i++) {
+    const head = mg2.heads[i];
+    const pos = MG2_HOLES[head.holeIndex];
+    const dist = Math.hypot(x - pos.x, y - pos.y);
+    if (dist <= hitRadius) {
+      if (head.type === 'grinch') {
+        const pts = 12 + Math.floor(Math.random() * 7);
+        mg2.score += pts;
+        playGoodHitSound();
+        mg2.popups.push({ x: pos.x, y: pos.y, text: '+' + pts, color: '#66ff8a', life: 0 });
+      } else {
+        const pts = 10 + Math.floor(Math.random() * 6);
+        mg2.score -= pts;
+        playBadHitSound();
+        mg2.popups.push({ x: pos.x, y: pos.y, text: '-' + pts, color: '#ff6b6b', life: 0 });
+      }
+      mg2.heads.splice(i, 1);
+      break;
+    }
+  }
+}
+mg2Canvas.addEventListener('mousedown', (e) => mg2HandleShoot(e.clientX, e.clientY));
+mg2Canvas.addEventListener('touchstart', (e) => {
+  if (e.touches[0]) mg2HandleShoot(e.touches[0].clientX, e.touches[0].clientY);
+  e.preventDefault();
+}, { passive: false });
+
+function mg2Update(dtMs) {
+  mg2.spawnTimer += dtMs;
+  if (mg2.spawnTimer >= mg2.spawnInterval) {
+    mg2.spawnTimer = 0;
+    mg2SpawnHead();
+    mg2.spawnInterval = Math.max(360, mg2.spawnInterval - 5);
+  }
+  for (let i = mg2.heads.length - 1; i >= 0; i--) {
+    mg2.heads[i].life += dtMs;
+    if (mg2.heads[i].life >= mg2.heads[i].maxLife) mg2.heads.splice(i, 1);
+  }
+  for (let i = mg2.stones.length - 1; i >= 0; i--) {
+    mg2.stones[i].t += dtMs;
+    if (mg2.stones[i].t >= mg2.stones[i].duration) mg2.stones.splice(i, 1);
+  }
+  for (let i = mg2.popups.length - 1; i >= 0; i--) {
+    mg2.popups[i].life += dtMs;
+    mg2.popups[i].y -= dtMs * 0.03;
+    if (mg2.popups[i].life > 700) mg2.popups.splice(i, 1);
+  }
+}
+
+function mg2Draw() {
+  const w = mg2Canvas.width, h = mg2Canvas.height;
+  mg2Ctx.clearRect(0, 0, w, h);
+  mg2Ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 18; i++) {
+    const sx = (i * 61.3) % w, sy = (i * 83.7) % (h * 0.45);
+    mg2Ctx.fillRect(sx, sy, 1.5, 1.5);
+  }
+
+  // Löcher/Büsche als Orientierung
+  for (const hpos of MG2_HOLES) {
+    mg2Ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    mg2Ctx.beginPath(); mg2Ctx.ellipse(hpos.x, hpos.y + 24, 26, 8, 0, 0, Math.PI * 2); mg2Ctx.fill();
+  }
+
+  for (const head of mg2.heads) {
+    const pos = MG2_HOLES[head.holeIndex];
+    const t = Math.min(1, head.life / head.maxLife);
+    const scale = Math.max(0.05, Math.sin(Math.PI * t));
+    mg2DrawFace(head.type, pos.x, pos.y, scale);
+  }
+
+  mg2DrawSlingshot();
+
+  mg2Ctx.fillStyle = '#8a8a8a';
+  for (const s of mg2.stones) {
+    const t = Math.min(1, s.t / s.duration);
+    const x = s.fromX + (s.toX - s.fromX) * t;
+    const y = s.fromY + (s.toY - s.fromY) * t - Math.sin(Math.PI * t) * 26;
+    mg2Ctx.beginPath(); mg2Ctx.arc(x, y, 5, 0, Math.PI * 2); mg2Ctx.fill();
+  }
+
+  mg2Ctx.textAlign = 'center';
+  for (const p of mg2.popups) {
+    mg2Ctx.globalAlpha = Math.max(0, 1 - p.life / 700);
+    mg2Ctx.fillStyle = p.color;
+    mg2Ctx.font = 'bold 16px Quicksand, sans-serif';
+    mg2Ctx.fillText(p.text, p.x, p.y);
+  }
+  mg2Ctx.globalAlpha = 1;
+
+  mg2Ctx.textAlign = 'left';
+  mg2Ctx.fillStyle = '#ffd27a';
+  mg2Ctx.font = 'bold 15px Quicksand, sans-serif';
+  mg2Ctx.fillText('🎯 ' + mg2.score, 10, 22);
+  mg2Ctx.textAlign = 'right';
+  mg2Ctx.fillStyle = mg2.timeLeft <= 10 ? '#ff6b6b' : '#f2f0ea';
+  mg2Ctx.fillText('⏱ ' + Math.ceil(mg2.timeLeft) + 's', w - 10, 22);
+}
+
+function mg2Loop(now) {
+  if (!mg2.running) return;
+  const dt = Math.min(50, now - mg2.lastFrameTime);
+  mg2.lastFrameTime = now;
+  mg2.timeLeft -= dt / 1000;
+
+  if (mg2.timeLeft <= 0) {
+    mg2.timeLeft = 0;
+    mg2Update(dt);
+    mg2Draw();
+    mg2EndGame();
+    return;
+  }
+  mg2Update(dt);
+  mg2Draw();
+  mg2.rafId = requestAnimationFrame(mg2Loop);
+}
+
+function mg2StartGame() {
+  mg2ResetState();
+  mg2.running = true;
+  mg2.lastFrameTime = performance.now();
+  document.getElementById('minigame2-overlay').style.display = 'none';
+  document.getElementById('minigame2-gameover').style.display = 'none';
+  mg2.rafId = requestAnimationFrame(mg2Loop);
+}
+
+function mg2EndGame() {
+  mg2.running = false;
+  if (mg2.rafId) cancelAnimationFrame(mg2.rafId);
+  playMinigameOverSound();
+  document.getElementById('minigame2-final-score').textContent = mg2.score + ' Punkte';
+  document.getElementById('minigame2-gameover').style.display = 'block';
+  const nameInput = document.getElementById('minigame2-name-input');
+  nameInput.value = '';
+  nameInput.focus();
+}
+
+document.getElementById('minigame2-start-btn').addEventListener('click', mg2StartGame);
+document.getElementById('minigame2-restart-btn').addEventListener('click', mg2StartGame);
+
+document.getElementById('minigame2-save-btn').addEventListener('click', () => {
+  const input = document.getElementById('minigame2-name-input');
+  const raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (!raw) { showToast('⚠️ Bitte 1–5 Buchstaben/Zahlen eingeben.'); return; }
+  saveSlingshotScore(raw, mg2.score);
+  document.getElementById('minigame2-save-btn').disabled = true;
+});
+
+document.getElementById('minigame2-btn').addEventListener('click', () => {
+  document.getElementById('minigame2-backdrop').classList.add('show');
+  document.getElementById('minigame2-save-btn').disabled = false;
+  mg2ResetState();
+  mg2Draw();
+  document.getElementById('minigame2-overlay').style.display = 'flex';
+  document.getElementById('minigame2-gameover').style.display = 'none';
+});
+document.getElementById('minigame2-close-btn').addEventListener('click', () => {
+  document.getElementById('minigame2-backdrop').classList.remove('show');
+  mg2.running = false;
+  if (mg2.rafId) cancelAnimationFrame(mg2.rafId);
+});
+document.getElementById('minigame2-backdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'minigame2-backdrop') {
+    document.getElementById('minigame2-backdrop').classList.remove('show');
+    mg2.running = false;
+    if (mg2.rafId) cancelAnimationFrame(mg2.rafId);
+  }
+});
+
+/* ============================================================
+   MINISPIEL 3: "Flappy Weihnachten" — Flappy-Bird-artiges Endlos-
+   Ausweichspiel. Klick/Tap/Leertaste lässt den Charakter aufsteigen,
+   die Schwerkraft zieht ihn ständig nach unten. Eigene Highscore-
+   Collection, eigenes <canvas>.
+   ============================================================ */
+function playFlapSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(420, now);
+  osc.frequency.exponentialRampToValueAtTime(680, now + 0.09);
+  gain.gain.setValueAtTime(0.14, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.13);
+}
+function playPassSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  [660, 880].forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = f;
+    const t0 = now + i * 0.06;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.linearRampToValueAtTime(0.2, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0 + 0.18);
+  });
+}
+function playCrashSound() {
+  initAudio();
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(260, now);
+  osc.frequency.exponentialRampToValueAtTime(50, now + 0.45);
+  gain.gain.setValueAtTime(0.2, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.5);
+}
+
+const mg3Canvas = document.getElementById('minigame3-canvas');
+const mg3Ctx = mg3Canvas.getContext('2d');
+const MG3_GRAVITY = 0.0011;      // px/ms^2
+const MG3_FLAP_VY = -0.34;       // px/ms Impuls beim Flattern
+const MG3_PLAYER_X = 80;
+const MG3_PLAYER_R = 15;
+const MG3_GAP_HEIGHT = 132;
+const MG3_OBSTACLE_WIDTH = 52;
+const MG3_GROUND_HEIGHT = 22;
+const MG3_OBSTACLE_TYPES = ['chimney', 'gifts', 'candle'];
+
+let mg3 = {
+  running: false, started: false, score: 0,
+  playerY: 200, playerVy: 0,
+  obstacles: [], banner: null,
+  speed: 0.11, spawnTimer: 0, spawnInterval: 1550,
+  lastFrameTime: 0, rafId: null
+};
+
+function mg3ResetState() {
+  mg3.running = false;
+  mg3.started = false;
+  mg3.score = 0;
+  mg3.playerY = mg3Canvas.height / 2;
+  mg3.playerVy = 0;
+  mg3.obstacles = [];
+  mg3.banner = null;
+  mg3.speed = 0.11;
+  mg3.spawnTimer = 0;
+  mg3.spawnInterval = 1550;
+}
+
+function mg3SpawnObstacle() {
+  const margin = 40;
+  const gapY = margin + Math.random() * (mg3Canvas.height - MG3_GROUND_HEIGHT - margin * 2 - MG3_GAP_HEIGHT);
+  const type = MG3_OBSTACLE_TYPES[Math.floor(Math.random() * MG3_OBSTACLE_TYPES.length)];
+  mg3.obstacles.push({ x: mg3Canvas.width + MG3_OBSTACLE_WIDTH, gapY, type, passed: false });
+}
+
+function mg3DrawPlayer(x, y, vy) {
+  const rotation = Math.max(-0.5, Math.min(0.9, vy * 0.0018));
+  mg3Ctx.save();
+  mg3Ctx.translate(x, y);
+  mg3Ctx.rotate(rotation);
+  if (MG3_CHARACTER === 'emoji') {
+    mg3Ctx.font = (MG3_PLAYER_R * 2.1) + 'px sans-serif';
+    mg3Ctx.textAlign = 'center';
+    mg3Ctx.textBaseline = 'middle';
+    mg3Ctx.fillText(MG3_CHARACTER_EMOJI, 0, 2);
+  } else if (MG3_CHARACTER === 'grinch') {
+    mg3Ctx.fillStyle = '#3f8a4a';
+    mg3Ctx.beginPath(); mg3Ctx.arc(0, 0, MG3_PLAYER_R, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#ffe14d';
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(-5, -1, 3.2, 4, 0, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(5, -1, 3.2, 4, 0, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#1a1a1a';
+    mg3Ctx.beginPath(); mg3Ctx.arc(-5, -1, 1.4, 0, Math.PI * 2); mg3Ctx.arc(5, -1, 1.4, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.strokeStyle = '#1a1a1a'; mg3Ctx.lineWidth = 1.6;
+    mg3Ctx.beginPath(); mg3Ctx.moveTo(-7, 6); mg3Ctx.quadraticCurveTo(0, 11, 8, 4); mg3Ctx.stroke();
+  } else if (MG3_CHARACTER === 'reindeer') {
+    mg3Ctx.fillStyle = '#6b4a2b';
+    mg3Ctx.beginPath(); mg3Ctx.arc(0, 0, MG3_PLAYER_R, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.strokeStyle = '#4a3320'; mg3Ctx.lineWidth = 1.8;
+    mg3Ctx.beginPath(); mg3Ctx.moveTo(-6, -10); mg3Ctx.lineTo(-10, -18); mg3Ctx.moveTo(-6, -10); mg3Ctx.lineTo(-2, -18); mg3Ctx.stroke();
+    mg3Ctx.beginPath(); mg3Ctx.moveTo(6, -10); mg3Ctx.lineTo(10, -18); mg3Ctx.moveTo(6, -10); mg3Ctx.lineTo(2, -18); mg3Ctx.stroke();
+    mg3Ctx.fillStyle = '#1a1a1a';
+    mg3Ctx.beginPath(); mg3Ctx.arc(-5, -2, 1.4, 0, Math.PI * 2); mg3Ctx.arc(5, -2, 1.4, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#ff2b2b';
+    mg3Ctx.beginPath(); mg3Ctx.arc(0, 6, 3.6, 0, Math.PI * 2); mg3Ctx.fill();
+  } else { // santa (Standard)
+    mg3Ctx.fillStyle = '#ffcf9e';
+    mg3Ctx.beginPath(); mg3Ctx.arc(0, 2, MG3_PLAYER_R * 0.82, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#d63b3b';
+    mg3Ctx.beginPath();
+    mg3Ctx.moveTo(-14, -4); mg3Ctx.quadraticCurveTo(0, -22, 14, -4);
+    mg3Ctx.quadraticCurveTo(0, -9, -14, -4); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#fff';
+    mg3Ctx.beginPath(); mg3Ctx.arc(14, -4, 4, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillRect(-15, -6, 30, 4);
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(0, 10, 11, 7, 0, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#1a1a1a';
+    mg3Ctx.beginPath(); mg3Ctx.arc(-4, 1, 1.3, 0, Math.PI * 2); mg3Ctx.arc(4, 1, 1.3, 0, Math.PI * 2); mg3Ctx.fill();
+  }
+  mg3Ctx.restore();
+}
+
+function mg3DrawObstaclePair(ob) {
+  const topH = ob.gapY;
+  const botY = ob.gapY + MG3_GAP_HEIGHT;
+  const botH = mg3Canvas.height - MG3_GROUND_HEIGHT - botY;
+  const w = MG3_OBSTACLE_WIDTH;
+
+  if (ob.type === 'chimney') {
+    mg3Ctx.fillStyle = '#8a4a3a';
+    mg3Ctx.fillRect(ob.x, 0, w, topH);
+    mg3Ctx.fillRect(ob.x, botY, w, botH);
+    mg3Ctx.fillStyle = '#e8e8e8';
+    mg3Ctx.fillRect(ob.x - 4, topH - 14, w + 8, 14);
+    mg3Ctx.fillRect(ob.x - 4, botY, w + 8, 14);
+    mg3Ctx.strokeStyle = 'rgba(0,0,0,0.2)'; mg3Ctx.lineWidth = 1;
+    for (let yy = 8; yy < topH - 14; yy += 12) { mg3Ctx.beginPath(); mg3Ctx.moveTo(ob.x, yy); mg3Ctx.lineTo(ob.x + w, yy); mg3Ctx.stroke(); }
+    for (let yy = botY + 20; yy < mg3Canvas.height - MG3_GROUND_HEIGHT; yy += 12) { mg3Ctx.beginPath(); mg3Ctx.moveTo(ob.x, yy); mg3Ctx.lineTo(ob.x + w, yy); mg3Ctx.stroke(); }
+  } else if (ob.type === 'gifts') {
+    const colors = ['#d63b3b', '#3b6fd6', '#3bd67a', '#d6b53b'];
+    const boxH = 30;
+    let yy = topH;
+    let i = 0;
+    while (yy > 0) {
+      const h = Math.min(boxH, yy);
+      mg3Ctx.fillStyle = colors[i % colors.length];
+      mg3Ctx.fillRect(ob.x, yy - h, w, h - 2);
+      mg3Ctx.fillStyle = '#fff';
+      mg3Ctx.fillRect(ob.x + w / 2 - 2, yy - h, 4, h - 2);
+      yy -= boxH; i++;
+    }
+    yy = botY; i = 0;
+    while (yy < mg3Canvas.height - MG3_GROUND_HEIGHT) {
+      const h = Math.min(boxH, mg3Canvas.height - MG3_GROUND_HEIGHT - yy);
+      mg3Ctx.fillStyle = colors[i % colors.length];
+      mg3Ctx.fillRect(ob.x, yy, w, h - 2);
+      mg3Ctx.fillStyle = '#fff';
+      mg3Ctx.fillRect(ob.x + w / 2 - 2, yy, 4, h - 2);
+      yy += boxH; i++;
+    }
+  } else { // candle
+    mg3Ctx.fillStyle = '#f2e6c9';
+    mg3Ctx.fillRect(ob.x + 8, 0, w - 16, topH);
+    mg3Ctx.fillRect(ob.x + 8, botY, w - 16, botH);
+    mg3Ctx.strokeStyle = 'rgba(150,100,40,0.3)'; mg3Ctx.lineWidth = 2;
+    mg3Ctx.beginPath(); mg3Ctx.moveTo(ob.x + 12, 0); mg3Ctx.lineTo(ob.x + 12, topH); mg3Ctx.moveTo(ob.x + w - 12, 0); mg3Ctx.lineTo(ob.x + w - 12, topH); mg3Ctx.stroke();
+    mg3Ctx.beginPath(); mg3Ctx.moveTo(ob.x + 12, botY); mg3Ctx.lineTo(ob.x + 12, mg3Canvas.height - MG3_GROUND_HEIGHT); mg3Ctx.moveTo(ob.x + w - 12, botY); mg3Ctx.lineTo(ob.x + w - 12, mg3Canvas.height - MG3_GROUND_HEIGHT); mg3Ctx.stroke();
+    // Flammen an den Enden nahe der Lücke
+    mg3Ctx.fillStyle = '#ff8a1f';
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(ob.x + w / 2, topH - 6, 5, 8, 0, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#ffe14d';
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(ob.x + w / 2, topH - 6, 2.4, 4, 0, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#ff8a1f';
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(ob.x + w / 2, botY + 6, 5, 8, 0, 0, Math.PI * 2); mg3Ctx.fill();
+    mg3Ctx.fillStyle = '#ffe14d';
+    mg3Ctx.beginPath(); mg3Ctx.ellipse(ob.x + w / 2, botY + 6, 2.4, 4, 0, 0, Math.PI * 2); mg3Ctx.fill();
+  }
+}
+
+function mg3Flap() {
+  if (!mg3.running) return;
+  mg3.started = true;
+  mg3.playerVy = MG3_FLAP_VY;
+  playFlapSound();
+}
+mg3Canvas.addEventListener('mousedown', mg3Flap);
+mg3Canvas.addEventListener('touchstart', (e) => { mg3Flap(); e.preventDefault(); }, { passive: false });
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && document.getElementById('minigame3-backdrop').classList.contains('show')) {
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+    e.preventDefault();
+    mg3Flap();
+  }
+});
+
+function mg3ShowBanner(text) {
+  mg3.banner = { text, life: 0, maxLife: 1300 };
+}
+
+function mg3Update(dtMs) {
+  if (!mg3.started) return; // wartet auf ersten Klick/Flap
+  mg3.playerVy += MG3_GRAVITY * dtMs;
+  mg3.playerY += mg3.playerVy * dtMs;
+
+  mg3.spawnTimer += dtMs;
+  if (mg3.spawnTimer >= mg3.spawnInterval) {
+    mg3.spawnTimer = 0;
+    mg3SpawnObstacle();
+    mg3.spawnInterval = Math.max(1100, mg3.spawnInterval - 8);
+  }
+
+  for (let i = mg3.obstacles.length - 1; i >= 0; i--) {
+    const ob = mg3.obstacles[i];
+    ob.x -= mg3.speed * dtMs;
+
+    if (!ob.passed && ob.x + MG3_OBSTACLE_WIDTH < MG3_PLAYER_X - MG3_PLAYER_R) {
+      ob.passed = true;
+      mg3.score++;
+      playPassSound();
+      if (Math.random() < 0.6) mg3ShowBanner(MG3_PASS_MESSAGES[Math.floor(Math.random() * MG3_PASS_MESSAGES.length)]);
+    }
+
+    const withinX = MG3_PLAYER_X + MG3_PLAYER_R > ob.x && MG3_PLAYER_X - MG3_PLAYER_R < ob.x + MG3_OBSTACLE_WIDTH;
+    const hitsTop = mg3.playerY - MG3_PLAYER_R < ob.gapY;
+    const hitsBottom = mg3.playerY + MG3_PLAYER_R > ob.gapY + MG3_GAP_HEIGHT;
+    if (withinX && (hitsTop || hitsBottom)) {
+      mg3Crash();
+      return;
+    }
+
+    if (ob.x < -MG3_OBSTACLE_WIDTH) mg3.obstacles.splice(i, 1);
+  }
+
+  if (mg3.playerY + MG3_PLAYER_R > mg3Canvas.height - MG3_GROUND_HEIGHT || mg3.playerY - MG3_PLAYER_R < 0) {
+    mg3Crash();
+    return;
+  }
+
+  if (mg3.banner) {
+    mg3.banner.life += dtMs;
+    if (mg3.banner.life > mg3.banner.maxLife) mg3.banner = null;
+  }
+}
+
+function mg3Draw() {
+  const w = mg3Canvas.width, h = mg3Canvas.height;
+  mg3Ctx.clearRect(0, 0, w, h);
+  mg3Ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 20; i++) {
+    const sx = (i * 57.1) % w, sy = (i * 71.3) % (h * 0.6);
+    mg3Ctx.fillRect(sx, sy, 1.5, 1.5);
+  }
+
+  for (const ob of mg3.obstacles) mg3DrawObstaclePair(ob);
+
+  // Boden
+  mg3Ctx.fillStyle = '#e8eef5';
+  mg3Ctx.fillRect(0, h - MG3_GROUND_HEIGHT, w, MG3_GROUND_HEIGHT);
+  mg3Ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  for (let x = 0; x < w; x += 18) mg3Ctx.fillRect(x, h - MG3_GROUND_HEIGHT, 9, 4);
+
+  mg3DrawPlayer(MG3_PLAYER_X, mg3.playerY, mg3.playerVy);
+
+  if (mg3.banner) {
+    const t = mg3.banner.life / mg3.banner.maxLife;
+    const alpha = t < 0.15 ? t / 0.15 : (t > 0.8 ? (1 - t) / 0.2 : 1);
+    mg3Ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    mg3Ctx.fillStyle = 'rgba(13,24,54,0.88)';
+    mg3Ctx.fillRect(20, 30, w - 40, 34);
+    mg3Ctx.strokeStyle = 'rgba(212,175,55,0.6)'; mg3Ctx.lineWidth = 1.5;
+    mg3Ctx.strokeRect(20, 30, w - 40, 34);
+    mg3Ctx.fillStyle = '#ffd27a';
+    mg3Ctx.font = 'bold 14px Quicksand, sans-serif';
+    mg3Ctx.textAlign = 'center';
+    mg3Ctx.fillText(mg3.banner.text, w / 2, 51);
+    mg3Ctx.globalAlpha = 1;
+  }
+
+  mg3Ctx.textAlign = 'left';
+  mg3Ctx.fillStyle = '#ffd27a';
+  mg3Ctx.font = 'bold 15px Quicksand, sans-serif';
+  mg3Ctx.fillText('⭐ ' + mg3.score, 10, 22);
+
+  if (!mg3.started) {
+    mg3Ctx.globalAlpha = 0.85;
+    mg3Ctx.fillStyle = '#fff';
+    mg3Ctx.font = 'bold 13px Quicksand, sans-serif';
+    mg3Ctx.textAlign = 'center';
+    mg3Ctx.fillText('Tippen zum Losfliegen!', w / 2, h / 2 - 40);
+    mg3Ctx.globalAlpha = 1;
+  }
+}
+
+function mg3Loop(now) {
+  if (!mg3.running) return;
+  const dt = Math.min(50, now - mg3.lastFrameTime);
+  mg3.lastFrameTime = now;
+  mg3Update(dt);
+  mg3Draw();
+  if (mg3.running) mg3.rafId = requestAnimationFrame(mg3Loop);
+}
+
+function mg3StartGame() {
+  mg3ResetState();
+  mg3.running = true;
+  mg3.lastFrameTime = performance.now();
+  document.getElementById('minigame3-overlay').style.display = 'none';
+  document.getElementById('minigame3-gameover').style.display = 'none';
+  mg3.rafId = requestAnimationFrame(mg3Loop);
+}
+
+function mg3Crash() {
+  mg3.running = false;
+  if (mg3.rafId) cancelAnimationFrame(mg3.rafId);
+  playCrashSound();
+  document.getElementById('minigame3-final-score').textContent = mg3.score + ' Punkte';
+  document.getElementById('minigame3-crash-line').textContent =
+    '"' + MG3_CRASH_MESSAGES[Math.floor(Math.random() * MG3_CRASH_MESSAGES.length)] + '"';
+  document.getElementById('minigame3-gameover').style.display = 'block';
+  const nameInput = document.getElementById('minigame3-name-input');
+  nameInput.value = '';
+  nameInput.focus();
+}
+
+document.getElementById('minigame3-start-btn').addEventListener('click', mg3StartGame);
+document.getElementById('minigame3-restart-btn').addEventListener('click', mg3StartGame);
+
+document.getElementById('minigame3-save-btn').addEventListener('click', () => {
+  const input = document.getElementById('minigame3-name-input');
+  const raw = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (!raw) { showToast('⚠️ Bitte 1–5 Buchstaben/Zahlen eingeben.'); return; }
+  saveFlappyScore(raw, mg3.score);
+  document.getElementById('minigame3-save-btn').disabled = true;
+});
+
+document.getElementById('minigame3-btn').addEventListener('click', () => {
+  document.getElementById('minigame3-backdrop').classList.add('show');
+  document.getElementById('minigame3-save-btn').disabled = false;
+  mg3ResetState();
+  mg3Draw();
+  document.getElementById('minigame3-overlay').style.display = 'flex';
+  document.getElementById('minigame3-gameover').style.display = 'none';
+});
+document.getElementById('minigame3-close-btn').addEventListener('click', () => {
+  document.getElementById('minigame3-backdrop').classList.remove('show');
+  mg3.running = false;
+  if (mg3.rafId) cancelAnimationFrame(mg3.rafId);
+});
+document.getElementById('minigame3-backdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'minigame3-backdrop') {
+    document.getElementById('minigame3-backdrop').classList.remove('show');
+    mg3.running = false;
+    if (mg3.rafId) cancelAnimationFrame(mg3.rafId);
+  }
+});
+
+/* ============================================================
+   4) PIXI-SZENE: Himmel, Schnee, Häuser, Baum
+   ============================================================ */
+const pixiApp = new PIXI.Application({
+  resizeTo: window,
+  backgroundAlpha: 0,
+  antialias: true,
+  autoDensity: true,
+  resolution: Math.min(window.devicePixelRatio || 1, 2)
+});
+document.getElementById('pixi-container').appendChild(pixiApp.view);
+
+const skyLayer = new PIXI.Container();
+const flybyLayer = new PIXI.Container();
+const bgSnowLayer = new PIXI.Container();
+const housesLayer = new PIXI.Container();
+const peopleLayer = new PIXI.Container();
+const treeContainer = new PIXI.Container();
+const treeGraphicsContainer = new PIXI.Container();
+const lightsContainer = new PIXI.Container();
+const needleFallLayer = new PIXI.Container();
+const fgSnowLayer = new PIXI.Container();
+
+treeContainer.addChild(treeGraphicsContainer, lightsContainer);
+pixiApp.stage.addChild(skyLayer, flybyLayer, bgSnowLayer, housesLayer, peopleLayer, treeContainer, needleFallLayer, fgSnowLayer);
+
+function lerpColor(c1, c2, t) {
+  t = Math.max(0, Math.min(1, t));
+  const r1=(c1>>16)&0xff, g1=(c1>>8)&0xff, b1=c1&0xff;
+  const r2=(c2>>16)&0xff, g2=(c2>>8)&0xff, b2=c2&0xff;
+  const r=Math.round(r1+(r2-r1)*t), g=Math.round(g1+(g2-g1)*t), b=Math.round(b1+(b2-b1)*t);
+  return (r<<16)|(g<<8)|b;
+}
+
+/* ---- Sterne & Mond ---- */
+const stars = [];
+const spookyClouds = [];
+let moonGraphic = null, moonGlowGraphic = null, moonFaceGraphic = null, moonHovered = false;
+
+function buildSky() {
+  skyLayer.removeChildren();
+  stars.length = 0;
+  spookyClouds.length = 0;
+
+  if (IS_HALLOWEEN) {
+    for (let i = 0; i < 5; i++) {
+      const c = new PIXI.Graphics();
+      c.beginFill(0x2a1830, 0.5);
+      c.drawEllipse(0, 0, 70 + Math.random() * 40, 22 + Math.random() * 10);
+      c.drawEllipse(-42, 6, 42, 16);
+      c.drawEllipse(42, 4, 46, 18);
+      c.endFill();
+      c.x = Math.random() * pixiApp.screen.width;
+      c.y = pixiApp.screen.height * (0.05 + Math.random() * 0.25);
+      c.speed = 0.15 + Math.random() * 0.25;
+      skyLayer.addChild(c);
+      spookyClouds.push(c);
+    }
+  }
+
+  const moonContainer = new PIXI.Container();
+  moonContainer.x = pixiApp.screen.width * 0.82;
+  moonContainer.y = pixiApp.screen.height * 0.14;
+
+  // Weiches, mehrschichtiges Glühen statt hartem Kreis
+  const glow = new PIXI.Graphics();
+  glow.beginFill(0xfff4d6, 0.05); glow.drawCircle(0, 0, 105); glow.endFill();
+  glow.beginFill(0xfff4d6, 0.09); glow.drawCircle(0, 0, 78); glow.endFill();
+  glow.beginFill(0xfff4d6, 0.16); glow.drawCircle(0, 0, 56); glow.endFill();
+  moonContainer.addChild(glow);
+
+  const body = new PIXI.Graphics();
+  body.beginFill(0xfff7e0); body.drawCircle(0, 0, 34); body.endFill();
+  // ein paar Krater für mehr Tiefe/Detail
+  const craters = [[-10, -8, 7], [8, 4, 5], [-4, 12, 4], [13, -14, 3.5], [-16, 4, 3]];
+  for (const [cx, cy, cr] of craters) {
+    body.beginFill(0xe8dcb8, 0.5);
+    body.drawCircle(cx, cy, cr);
+    body.endFill();
+  }
+  moonContainer.addChild(body);
+
+  // Verstecktes, gruseliges Gesicht (nur an Halloween beim Hover sichtbar,
+  // eigene Gestaltung, keine lizenzierte Figur)
+  const face = new PIXI.Graphics();
+  face.beginFill(0x1a1a1a, 1);
+  face.moveTo(-14, -6); face.lineTo(-6, -1); face.lineTo(-14, 5); face.closePath();
+  face.moveTo(14, -6); face.lineTo(6, -1); face.lineTo(14, 5); face.closePath();
+  face.endFill();
+  face.lineStyle(2.2, 0x1a1a1a, 1);
+  face.moveTo(-11, 15);
+  for (let i = -11; i <= 11; i += 2.2) face.lineTo(i, 15 + (Math.round(i / 2.2) % 2 === 0 ? 4.5 : 0));
+  face.lineStyle(0);
+  face.alpha = 0;
+  moonContainer.addChild(face);
+
+  moonContainer.eventMode = 'static';
+  moonContainer.cursor = 'pointer';
+  moonContainer.on('pointerover', () => { moonHovered = true; });
+  moonContainer.on('pointerout', () => { moonHovered = false; });
+
+  skyLayer.addChild(moonContainer);
+  moonGraphic = body;
+  moonGlowGraphic = glow;
+  moonFaceGraphic = face;
+
+  for (let i = 0; i < 70; i++) {
+    const s = new PIXI.Graphics();
+    const r = 1 + Math.random() * 1.6;
+    s.beginFill(0xffffff, 0.8); s.drawCircle(0,0,r); s.endFill();
+    s.x = Math.random() * pixiApp.screen.width;
+    s.y = Math.random() * pixiApp.screen.height * 0.5;
+    s.phase = Math.random() * Math.PI * 2;
+    skyLayer.addChild(s);
+    stars.push(s);
+  }
+}
+
+/* ---- Schnee ---- */
+class SnowLayer {
+  constructor(container, count, opts) {
+    this.container = container;
+    this.opts = opts;
+    this.flakes = [];
+    for (let i = 0; i < count; i++) this.addFlake(true);
+  }
+  addFlake(randomY) {
+    const g = new PIXI.Graphics();
+    const r = this.opts.minR + Math.random() * (this.opts.maxR - this.opts.minR);
+    g.beginFill(0xffffff, this.opts.minA + Math.random() * (this.opts.maxA - this.opts.minA));
+    g.drawCircle(0, 0, r);
+    g.endFill();
+    g.x = Math.random() * pixiApp.screen.width;
+    g.y = randomY ? Math.random() * pixiApp.screen.height : -10;
+    g.speed = this.opts.minS + Math.random() * (this.opts.maxS - this.opts.minS);
+    g.sway = Math.random() * Math.PI * 2;
+    g.swaySpeed = 0.4 + Math.random() * 0.8;
+    this.container.addChild(g);
+    this.flakes.push(g);
+  }
+  update(delta, intensity) {
+    for (const f of this.flakes) {
+      f.y += f.speed * delta * intensity;
+      f.sway += 0.02 * f.swaySpeed * delta;
+      f.x += Math.sin(f.sway) * 0.6 * intensity;
+      if (f.y > pixiApp.screen.height + 10) { f.y = -10; f.x = Math.random() * pixiApp.screen.width; }
+      if (f.x < -10) f.x = pixiApp.screen.width + 10;
+      if (f.x > pixiApp.screen.width + 10) f.x = -10;
+    }
+  }
+}
+const bgSnow = new SnowLayer(bgSnowLayer, 60, { minR:1, maxR:2.2, minA:0.25, maxA:0.5, minS:0.3, maxS:0.8 });
+const fgSnow = new SnowLayer(fgSnowLayer, 45, { minR:2.5, maxR:4.5, minA:0.6, maxA:0.95, minS:1.0, maxS:2.2 });
+
+/* ---- Fallende Tannennadeln (Verwelk-Effekt) ---- */
+class NeedleLayer {
+  constructor(container, maxCount) {
+    this.container = container;
+    this.maxCount = maxCount;
+    this.pool = [];
+  }
+  spawn(x, y, wilt) {
+    if (this.pool.length >= this.maxCount) return;
+    const g = new PIXI.Graphics();
+    const healthy = 0x2f6b3f, dead = 0x6b4a2b;
+    const col = lerpColor(healthy, dead, Math.min(1, wilt + Math.random() * 0.35));
+    g.beginFill(col);
+    g.drawRoundedRect(-1.4, -5, 2.8, 10, 1.2);
+    g.endFill();
+    g.x = x; g.y = y;
+    g.rotation = Math.random() * Math.PI * 2;
+    g.vy = 0.9 + Math.random() * 1.4;
+    g.vx = (Math.random() - 0.5) * 0.7;
+    g.vr = (Math.random() - 0.5) * 0.12;
+    g.life = 0;
+    g.maxLife = 220 + Math.random() * 160;
+    this.container.addChild(g);
+    this.pool.push(g);
+  }
+  update(delta) {
+    for (let i = this.pool.length - 1; i >= 0; i--) {
+      const n = this.pool[i];
+      n.vy += 0.018 * delta;
+      n.y += n.vy * delta;
+      n.x += n.vx * delta;
+      n.rotation += n.vr * delta;
+      n.life += delta;
+      n.alpha = Math.max(0, 1 - n.life / n.maxLife);
+      if (n.life >= n.maxLife || n.y > pixiApp.screen.height + 20) {
+        this.container.removeChild(n);
+        n.destroy();
+        this.pool.splice(i, 1);
+      }
+    }
+  }
+}
+const needleLayer = new NeedleLayer(needleFallLayer, 260);
+
+let currentTreeBaseWidth = 0, currentTreeHeight = 0, currentTreeTopY = 0, currentTreeGraphic = null;
+
+function spawnNeedleAroundTree(wilt) {
+  if (!currentTreeBaseWidth) return;
+  const ry = Math.random() * currentTreeHeight * 0.85;
+  const narrow = 1 - (ry / currentTreeHeight) * 0.45;
+  const rx = (Math.random() - 0.5) * currentTreeBaseWidth * 0.7 * narrow;
+  const x = treeContainer.x + rx;
+  const y = treeContainer.y + currentTreeTopY + ry;
+  needleLayer.spawn(x, y, wilt);
+}
+
+function triggerCollapseBurst() {
+  for (let i = 0; i < 45; i++) spawnNeedleAroundTree(1);
+}
+
+/* ---- Fliegender Schlitten: Weihnachtsmann mit Rentieren & Rudolph ----
+   Fliegt in unregelmäßigen Abständen quer über den Himmel. An Halloween
+   wird daraus ein eigens gestalteter Geisterhund-Schlitten (keine
+   lizenzierte Figur) mit leuchtender Kürbis-Nase statt Rudolph. */
+function buildSleigh(spooky) {
+  const container = new PIXI.Container();
+  const spacing = 34;
+  const gap = 22; // Abstand zwischen Schlitten und erstem Zugtier
+  let noseRef = null;
+
+  // Der Schlitten sitzt am lokalen Nullpunkt (= hinteres Ende der Formation).
+  // Die Zugtiere werden davor (bei positivem lokalem x) platziert, mit dem
+  // Leittier (Rudolph bzw. Geisterhund) ganz vorn. Da die Blickrichtung über
+  // scale.x = Flugrichtung gespiegelt wird, ist "positives lokales x" so
+  // immer die tatsächliche Flugrichtung nach vorn.
+  if (!spooky) {
+    const reindeerCount = 4;
+    for (let i = 0; i < reindeerCount; i++) {
+      const rx = (reindeerCount - i) * spacing + gap;
+      const isLead = i === 0; // vorderstes Rentier = Rudolph
+      const r = new PIXI.Graphics();
+      const bodyColor = 0x6b4a2b;
+      r.beginFill(bodyColor); r.drawEllipse(rx, 0, 14, 7); r.endFill();
+      r.beginFill(bodyColor); r.drawCircle(rx + 14, -4, 5); r.endFill();
+      r.lineStyle(1.5, 0x4a3320);
+      r.moveTo(rx + 17, -8); r.lineTo(rx + 20, -14);
+      r.moveTo(rx + 17, -8); r.lineTo(rx + 14, -15);
+      r.moveTo(rx + 11, -8); r.lineTo(rx + 8, -14);
+      r.moveTo(rx + 11, -8); r.lineTo(rx + 13, -15);
+      r.lineStyle(0);
+      r.beginFill(bodyColor);
+      r.drawRect(rx - 8, 4, 2, 8); r.drawRect(rx + 2, 4, 2, 8);
+      r.endFill();
+      container.addChild(r);
+      if (isLead) {
+        const nose = new PIXI.Graphics();
+        nose.beginFill(0xff2b2b, 0.9); nose.drawCircle(0, 0, 3.2); nose.endFill();
+        nose.beginFill(0xff2b2b, 0.28); nose.drawCircle(0, 0, 7.5); nose.endFill();
+        nose.x = rx + 19; nose.y = -4;
+        container.addChild(nose);
+        noseRef = nose;
+      }
+    }
+  } else {
+    // Halloween: ein eigens gestalteter, schemenhafter Geisterhund statt eines lizenzierten Charakters
+    const dogX = spacing + gap;
+    const g = new PIXI.Graphics();
+    g.beginFill(0xcfd8e3, 0.55); g.drawEllipse(dogX, 0, 20, 10); g.endFill();
+    g.beginFill(0xcfd8e3, 0.55); g.drawCircle(dogX + 18, -6, 7); g.endFill();
+    g.beginFill(0xcfd8e3, 0.35); g.drawRoundedRect(dogX - 26, 4, 30, 14, 9); g.endFill();
+    container.addChild(g);
+    const nose = new PIXI.Graphics();
+    nose.beginFill(0xff8a1f, 0.95); nose.drawCircle(0, 0, 3.4); nose.endFill();
+    nose.beginFill(0xff8a1f, 0.3); nose.drawCircle(0, 0, 8); nose.endFill();
+    nose.x = dogX + 24; nose.y = -6;
+    container.addChild(nose);
+    noseRef = nose;
+  }
+
+  const sleighX = 0;
+  const sleigh = new PIXI.Graphics();
+  const sleighColor = spooky ? 0x2b2130 : 0x8a2b2b;
+  sleigh.beginFill(sleighColor);
+  sleigh.moveTo(sleighX - 4, -14);
+  sleigh.lineTo(sleighX + 30, -14);
+  sleigh.lineTo(sleighX + 34, 4);
+  sleigh.lineTo(sleighX - 8, 4);
+  sleigh.closePath();
+  sleigh.endFill();
+  sleigh.lineStyle(2, spooky ? 0x111111 : 0xd4af37, 0.8);
+  sleigh.moveTo(sleighX - 8, 4); sleigh.lineTo(sleighX - 14, 10);
+  sleigh.lineStyle(0);
+  container.addChild(sleigh);
+
+  const rider = new PIXI.Graphics();
+  const riderColor = spooky ? 0xe8e8e8 : 0xc23b3b;
+  rider.beginFill(riderColor); rider.drawRoundedRect(sleighX + 2, -24, 14, 16, 4); rider.endFill();
+  rider.beginFill(spooky ? 0xe8e8e8 : 0xffe0bd); rider.drawCircle(sleighX + 9, -28, 5); rider.endFill();
+  if (!spooky) {
+    rider.beginFill(0xffffff); rider.drawRoundedRect(sleighX + 1, -30, 16, 6, 3); rider.endFill();
+  }
+  container.addChild(rider);
+
+  container.noseRef = noseRef;
+  return container;
+}
+
+let sleighContainer = null;
+let sleighActive = false;
+let sleighProgress = 0;
+let sleighDuration = 0;
+let sleighY = 0;
+let sleighDirection = 1;
+
+function startSleighFlight() {
+  if (sleighActive) return;
+  sleighContainer = buildSleigh(IS_HALLOWEEN);
+  sleighDirection = Math.random() < 0.5 ? 1 : -1;
+  sleighY = pixiApp.screen.height * (0.08 + Math.random() * 0.18);
+  sleighContainer.y = sleighY;
+  sleighContainer.x = sleighDirection === 1 ? -260 : pixiApp.screen.width + 260;
+  sleighContainer.scale.x = sleighDirection;
+  flybyLayer.addChild(sleighContainer);
+  sleighActive = true;
+  sleighProgress = 0;
+  sleighDuration = 640 + Math.random() * 260; // ~11-15s bei 60fps
+}
+
+function scheduleNextSleigh() {
+  const delayMs = 45000 + Math.random() * 75000; // alle 45-120s ein Vorbeiflug
+  setTimeout(() => { startSleighFlight(); scheduleNextSleigh(); }, delayMs);
+}
+
+/* ---- Häuser mit flackernden Fenstern ---- */
+const houseConfigs = [
+  { frac: 0.10, scale: 0.85 }, { frac: 0.24, scale: 1.05 }, { frac: 0.74, scale: 0.95 }, { frac: 0.90, scale: 0.75 }
+];
+const houseWindows = [];
+
+function buildHouses() {
+  housesLayer.removeChildren();
+  houseWindows.length = 0;
+  const groundY = pixiApp.screen.height - 20;
+
+  for (const cfg of houseConfigs) {
+    const house = new PIXI.Container();
+    const s = cfg.scale;
+    const bodyW = 90 * s, bodyH = 60 * s;
+
+    const body = new PIXI.Graphics();
+    body.beginFill(0x4a3728); body.drawRect(-bodyW/2, -bodyH, bodyW, bodyH); body.endFill();
+
+    const roof = new PIXI.Graphics();
+    roof.beginFill(0x2b2118);
+    roof.moveTo(-bodyW/2 - 10*s, -bodyH);
+    roof.lineTo(bodyW/2 + 10*s, -bodyH);
+    roof.lineTo(0, -bodyH - 42*s);
+    roof.closePath();
+    roof.endFill();
+    roof.lineStyle(3*s, 0xffffff, 0.65);
+    roof.moveTo(-bodyW/2 - 10*s, -bodyH);
+    roof.lineTo(0, -bodyH - 42*s);
+    roof.lineTo(bodyW/2 + 10*s, -bodyH);
+    roof.lineStyle(0);
+
+    const w1 = new PIXI.Graphics();
+    w1.beginFill(0xffd27a); w1.drawRect(-bodyW*0.28, -bodyH*0.65, 16*s, 16*s); w1.endFill();
+
+    const w2 = new PIXI.Graphics();
+    w2.beginFill(0xffd27a); w2.drawRect(bodyW*0.12, -bodyH*0.65, 16*s, 16*s); w2.endFill();
+
+    house.addChild(body, roof, w1, w2);
+    house.x = cfg.frac * pixiApp.screen.width;
+    house.y = groundY;
+    housesLayer.addChild(house);
+
+    for (const w of [w1, w2]) {
+      w.targetAlpha = 0.4 + Math.random()*0.6;
+      w.alpha = w.targetAlpha;
+      houseWindows.push(w);
+    }
+  }
+}
+
+function updateHouseFlicker() {
+  for (const w of houseWindows) {
+    if (Math.random() < 0.01) w.targetAlpha = 0.3 + Math.random() * 0.7;
+    w.alpha += (w.targetAlpha - w.alpha) * 0.06;
+  }
+}
+
+/* ---- Kleine animierte Personen vor den Häusern ----
+   Ihre Anzahl richtet sich nach den tatsächlich online befindlichen
+   Besuchern (siehe Presence-System weiter oben), gedeckelt auf
+   MAX_VISIBLE_PEOPLE aus Übersichtsgründen. Jede Person "gehört" zu
+   einem Haus und wandert in dessen Nähe hin und her. */
+class Person {
+  constructor(homeX) {
+    this.homeX = homeX;
+    this.range = 55 + Math.random() * 30;
+    this.container = new PIXI.Container();
+
+    const skinTones = [0xffe0bd, 0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524];
+    const coatColors = [0xd6453b, 0x3b6fd6, 0x3bd67a, 0xd6b53b, 0x9b4dd6, 0xff8a4d];
+    const skin = skinTones[Math.floor(Math.random() * skinTones.length)];
+    const coat = coatColors[Math.floor(Math.random() * coatColors.length)];
+
+    this.legL = new PIXI.Graphics();
+    this.legL.beginFill(0x2b2118); this.legL.drawRect(-3.5, -10, 3, 10); this.legL.endFill();
+    this.legR = new PIXI.Graphics();
+    this.legR.beginFill(0x2b2118); this.legR.drawRect(0.5, -10, 3, 10); this.legR.endFill();
+
+    const body = new PIXI.Graphics();
+    body.beginFill(coat); body.drawRoundedRect(-5, -25, 10, 16, 3); body.endFill();
+
+    const head = new PIXI.Graphics();
+    head.beginFill(skin); head.drawCircle(0, -29, 4.2); head.endFill();
+    head.beginFill(coat);
+    head.moveTo(-4.2, -32); head.lineTo(4.2, -32); head.lineTo(0, -40);
+    head.closePath(); head.endFill();
+
+    this.container.addChild(this.legL, this.legR, body, head);
+    this.container.x = homeX + (Math.random() - 0.5) * this.range;
+
+    this.phase = Math.random() * Math.PI * 2;
+    this.speed = 0.4 + Math.random() * 0.5;
+    this.dir = Math.random() < 0.5 ? -1 : 1;
+    this.container.scale.x = this.dir;
+  }
+  update(delta, groundY) {
+    this.phase += delta * 0.15 * this.speed;
+    const swing = Math.sin(this.phase) * 0.35;
+    this.legL.rotation = swing;
+    this.legR.rotation = -swing;
+    this.container.x += this.dir * this.speed * delta * 0.6;
+    const minX = this.homeX - this.range, maxX = this.homeX + this.range;
+    if (this.container.x < minX) { this.container.x = minX; this.dir = 1; this.container.scale.x = 1; }
+    if (this.container.x > maxX) { this.container.x = maxX; this.dir = -1; this.container.scale.x = -1; }
+    if (Math.random() < 0.002) { this.dir *= -1; this.container.scale.x = this.dir; }
+    this.container.y = groundY;
+  }
+  destroy() {
+    this.container.destroy({ children: true });
+  }
+}
+
+let people = [];
+function setPeopleCount(target) {
+  target = Math.max(0, Math.min(MAX_VISIBLE_PEOPLE, target));
+  while (people.length < target) {
+    const homeCfg = houseConfigs[people.length % houseConfigs.length];
+    const homeX = homeCfg.frac * pixiApp.screen.width;
+    const p = new Person(homeX);
+    peopleLayer.addChild(p.container);
+    people.push(p);
+  }
+  while (people.length > target) {
+    const p = people.pop();
+    p.destroy();
+  }
+}
+function updatePeopleHomes() {
+  // Bei Größenänderung des Fensters die "Zuhause"-Position neu berechnen
+  people.forEach((p, i) => {
+    const homeCfg = houseConfigs[i % houseConfigs.length];
+    p.homeX = homeCfg.frac * pixiApp.screen.width;
+  });
+}
+
+/* ---- Baum: Größe abhängig vom Bildschirm & Wachstumsstufe ---- */
+function computeTreeDims(level) {
+  const t = Math.max(0, Math.min(1, level / MAX_LEVEL));
+  const maxH = Math.min(pixiApp.screen.height * 0.88, 1100);
+  const minH = 46;
+  const totalHeight = minH + (maxH - minH) * t;
+  const maxW = Math.min(pixiApp.screen.width * 0.66, 720);
+  const minW = 30;
+  const baseWidth = minW + (maxW - minW) * t;
+  const trunkHeight = 16 + t * 50;
+  return { t, totalHeight, baseWidth, trunkHeight };
+}
+
+function drawStar(g, cx, cy, innerR, outerR, points, color) {
+  g.beginFill(color, 0.18);
+  g.drawCircle(cx, cy, outerR * 2.3);
+  g.endFill();
+  g.beginFill(color, 1);
+  const step = Math.PI / points;
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = -Math.PI/2 + i*step;
+    const px = cx + Math.cos(angle)*r;
+    const py = cy + Math.sin(angle)*r;
+    if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+  }
+  g.closePath();
+  g.endFill();
+}
+
+let currentLightPositions = [];
+
+function drawPumpkin(g, cx, cy, r) {
+  g.beginFill(0xff8a1f, 0.18);
+  g.drawCircle(cx, cy, r * 2.4);
+  g.endFill();
+  g.beginFill(0xd9660c);
+  g.drawEllipse(cx, cy, r, r * 0.85);
+  g.endFill();
+  g.lineStyle(1.4, 0xa8480a, 0.55);
+  g.moveTo(cx, cy - r * 0.8); g.lineTo(cx, cy + r * 0.8);
+  g.moveTo(cx - r * 0.45, cy - r * 0.75); g.lineTo(cx - r * 0.45, cy + r * 0.75);
+  g.moveTo(cx + r * 0.45, cy - r * 0.75); g.lineTo(cx + r * 0.45, cy + r * 0.75);
+  g.lineStyle(0);
+  g.beginFill(0x4a7a2e);
+  g.drawRect(cx - 2, cy - r * 1.05, 4, r * 0.35);
+  g.endFill();
+  const eyeY = cy - r * 0.1;
+  g.beginFill(0xfff2c2, 0.95);
+  g.moveTo(cx - r*0.42, eyeY - r*0.18); g.lineTo(cx - r*0.16, eyeY); g.lineTo(cx - r*0.42, eyeY + r*0.18); g.closePath();
+  g.moveTo(cx + r*0.42, eyeY - r*0.18); g.lineTo(cx + r*0.16, eyeY); g.lineTo(cx + r*0.42, eyeY + r*0.18); g.closePath();
+  g.endFill();
+  g.lineStyle(2, 0xfff2c2, 0.95);
+  g.moveTo(cx - r*0.3, cy + r*0.32);
+  g.lineTo(cx - r*0.1, cy + r*0.45);
+  g.lineTo(cx + r*0.1, cy + r*0.32);
+  g.lineTo(cx + r*0.3, cy + r*0.45);
+  g.lineStyle(0);
+}
+
+function redrawTree(level) {
+  treeGraphicsContainer.removeChildren();
+  currentLightPositions = [];
+  const g = new PIXI.Graphics();
+
+  // Halloween: eigene, gruselige Farbpalette statt Weihnachtsgrün
+  const PALETTE = IS_HALLOWEEN
+    ? { trunk: 0x1a1015, tier: 0x2b1830, edge: 0x8a6bb0, lametta: 0x8a2be2,
+        ornaments: [0xff8a1f, 0x8a2be2, 0x1a1a1a, 0x4a1f4a, 0xd9660c] }
+    : { trunk: 0x5b3a24, tier: 0x1f5c33, edge: 0xffffff, lametta: 0xd4af37,
+        ornaments: [0xff4d4d, 0xffd24d, 0x4da6ff, 0xc34dff, 0x4dff88, 0xff8a4d] };
+
+  if (level < 5) {
+    // Samenkorn / Sämling
+    g.beginFill(0x3d8f3d); g.drawRoundedRect(-3, -20, 6, 20, 3); g.endFill();
+    g.beginFill(0x4caf50);
+    g.drawEllipse(-9, -22, 9, 4.5);
+    g.drawEllipse(9, -22, 9, 4.5);
+    g.endFill();
+    if (level >= 2) {
+      g.beginFill(0x5cb860);
+      g.drawEllipse(0, -30, 6, 8);
+      g.endFill();
+    }
+    currentTreeBaseWidth = 30;
+    currentTreeHeight = 34;
+    currentTreeTopY = -34;
+  } else {
+    const dims = computeTreeDims(level);
+    const { t, totalHeight, baseWidth, trunkHeight } = dims;
+    const tierCount = Math.min(7, 2 + Math.floor(level / 14));
+
+    g.beginFill(PALETTE.trunk);
+    g.drawRect(-trunkHeight*0.32, -trunkHeight, trunkHeight*0.64, trunkHeight);
+    g.endFill();
+
+    let yCursor = -trunkHeight;
+    const tierHeight = totalHeight / tierCount;
+    let topY = yCursor;
+
+    for (let i = 0; i < tierCount; i++) {
+      const tierWidth = baseWidth * (1 - i / (tierCount + 0.6));
+      const apexY = yCursor - tierHeight;
+
+      g.beginFill(PALETTE.tier);
+      if (IS_HALLOWEEN) {
+        // knorrige, unregelmäßige Silhouette statt einer glatten Tanne
+        const jitter = tierWidth * 0.08;
+        g.moveTo(-tierWidth/2, yCursor);
+        g.lineTo(-tierWidth/4 + (Math.random()-0.5)*jitter, yCursor - tierHeight*0.4);
+        g.lineTo(tierWidth/2, yCursor);
+        g.lineTo(tierWidth/4 + (Math.random()-0.5)*jitter, yCursor - tierHeight*0.5);
+        g.lineTo(0, apexY);
+        g.lineTo(-tierWidth/4 + (Math.random()-0.5)*jitter, yCursor - tierHeight*0.55);
+        g.closePath();
+      } else {
+        g.moveTo(-tierWidth/2, yCursor);
+        g.lineTo(tierWidth/2, yCursor);
+        g.lineTo(0, apexY);
+        g.closePath();
+      }
+      g.endFill();
+
+      g.lineStyle(Math.max(2, 2.5*Math.sqrt(1+t)), PALETTE.edge, IS_HALLOWEEN ? 0.35 : 0.55);
+      g.moveTo(-tierWidth/2, yCursor);
+      g.lineTo(0, apexY + tierHeight*0.18);
+      g.lineTo(tierWidth/2, yCursor);
+      g.lineStyle(0);
+
+      topY = apexY;
+      yCursor = apexY + tierHeight * 0.38;
+    }
+
+    // Ornamente
+    const numOrnaments = Math.floor(level / 2.2);
+    const colors = PALETTE.ornaments;
+    for (let i = 0; i < numOrnaments; i++) {
+      const seed = i * 12.9898 + 3.7;
+      const rx = Math.sin(seed) * 0.5 + 0.5;
+      const ry = Math.abs(Math.sin(seed * 1.7)) * 0.88 + 0.04;
+      const px = (rx - 0.5) * baseWidth * 0.85 * (1 - ry * 0.55);
+      const py = -trunkHeight - ry * totalHeight * 0.92;
+      const r = (3 + (Math.sin(seed * 3) * 0.5 + 0.5) * 3) * (0.6 + 0.4*t);
+      g.beginFill(colors[i % colors.length]); g.drawCircle(px, py, r); g.endFill();
+      g.beginFill(0xffffff, IS_HALLOWEEN ? 0.25 : 0.55); g.drawCircle(px - r*0.3, py - r*0.3, r*0.3); g.endFill();
+    }
+
+    // Lametta
+    if (level >= 50) {
+      g.lineStyle(Math.max(1.5, 2*t+1), PALETTE.lametta, 0.75);
+      for (let i = 0; i < tierCount; i++) {
+        const yy = -trunkHeight - (i + 0.55) * (totalHeight / tierCount);
+        const ww = baseWidth * (1 - i / (tierCount + 1)) * 0.85;
+        g.moveTo(-ww/2, yy);
+        g.quadraticCurveTo(0, yy + 16, ww/2, yy);
+      }
+      g.lineStyle(0);
+    }
+
+    // Geschenke am Fuß des Baumes (nur bei hohem Level)
+    if (level >= 65) {
+      const numGifts = 3 + Math.floor((level - 65) / 9);
+      const giftColors = IS_HALLOWEEN
+        ? [0x4a1f4a, 0x1a1a1a, 0xd9660c, 0x2b1830]
+        : [0xd63b3b, 0x3b6fd6, 0x3bd67a, 0xd6b53b, 0x9b4dd6];
+      for (let i = 0; i < numGifts; i++) {
+        const gw = (16 + (i % 3) * 5) * (0.7 + 0.3*t);
+        const gh = gw * 0.85;
+        const gx = (i - (numGifts - 1) / 2) * (baseWidth * 0.15);
+        g.beginFill(giftColors[i % giftColors.length]);
+        g.drawRoundedRect(gx - gw/2, -gh, gw, gh, 2);
+        g.endFill();
+        g.lineStyle(2, IS_HALLOWEEN ? 0xff8a1f : 0xffffff, 0.85);
+        g.moveTo(gx, -gh); g.lineTo(gx, 0);
+        g.moveTo(gx - gw/2, -gh/2); g.lineTo(gx + gw/2, -gh/2);
+        g.lineStyle(0);
+      }
+    }
+
+    // Lichter-Positionen merken (werden separat im Ticker animiert)
+    const numLights = Math.floor(level / 5);
+    for (let i = 0; i < numLights; i++) {
+      const seed = i * 7.233 + 1.1;
+      const rx = Math.sin(seed) * 0.5 + 0.5;
+      const ry = Math.abs(Math.sin(seed * 2.1)) * 0.85 + 0.05;
+      const px = (rx - 0.5) * baseWidth * 0.7 * (1 - ry * 0.5);
+      const py = -trunkHeight - ry * totalHeight * 0.9;
+      currentLightPositions.push({ x: px, y: py });
+    }
+
+    // Baumspitze: Stern (normal) oder leuchtender Kürbis (Halloween)
+    if (level >= 88) {
+      const outerR = 13 + t * 10;
+      if (IS_HALLOWEEN) {
+        drawPumpkin(g, 0, topY - outerR*0.7, outerR*0.8);
+      } else {
+        drawStar(g, 0, topY - outerR*0.8, outerR*0.42, outerR, 5, 0xffe14d);
+      }
+    }
+
+    currentTreeBaseWidth = baseWidth;
+    currentTreeHeight = totalHeight + trunkHeight;
+    currentTreeTopY = topY;
+  }
+
+  treeGraphicsContainer.addChild(g);
+  currentTreeGraphic = g;
+
+  lightsContainer.removeChildren();
+  for (const p of currentLightPositions) {
+    const lg = new PIXI.Graphics();
+    lg.beginFill(IS_HALLOWEEN ? 0xff8a1f : 0xfff2a8); lg.drawCircle(0, 0, 3.6); lg.endFill();
+    lg.x = p.x; lg.y = p.y;
+    lg.phase = Math.random() * Math.PI * 2;
+    lightsContainer.addChild(lg);
+  }
+
+  if (level >= 88) {
+    const glow = new PIXI.Graphics();
+    const outerR = 13 + (level/100) * 10;
+    glow.beginFill(IS_HALLOWEEN ? 0xff8a1f : 0xffe14d, 0.35);
+    glow.drawCircle(0, 0, outerR * 2.4);
+    glow.endFill();
+    glow.x = 0;
+    glow.y = currentTreeTopY - outerR*0.8;
+    glow.isStarGlow = true;
+    lightsContainer.addChild(glow);
+  }
+}
+
+/* ---- Layout / Resize ---- */
+function layoutScene() {
+  treeContainer.x = pixiApp.screen.width / 2;
+  treeContainer.y = pixiApp.screen.height - 18;
+  buildSky();
+  buildHouses();
+  updatePeopleHomes();
+  lastDrawnLevel = -1; // Baumgröße hängt vom Bildschirm ab -> neu zeichnen
+  layoutLeftStack();
+}
+window.addEventListener('resize', layoutScene);
+
+/* ---- Mystery-Geschenk: UI-Update ---- */
+let lastGiftPct = -1;
+let giftVideoLoaded = false;
+function loadGiftVideo() {
+  const wrap = document.getElementById('gift-video-wrap');
+  const link = document.getElementById('gift-youtube-link');
+  if (isVideoPlaceholder()) {
+    wrap.textContent = 'Noch kein Video hinterlegt – siehe Setup-Anleitung unten auf der Seite.';
+    link.style.display = 'none';
+    return;
+  }
+  wrap.innerHTML = '<iframe src="https://www.youtube.com/embed/' + MYSTERY_YOUTUBE_ID +
+    '" title="Mystery-Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+  link.href = 'https://www.youtube.com/watch?v=' + MYSTERY_YOUTUBE_ID;
+  link.style.display = 'inline';
+}
+function updateGiftUI(level) {
+  const pct = Math.round(Math.max(0, Math.min(100, level)));
+  if (pct === lastGiftPct) return;
+  const wasOpenState = lastGiftPct >= 100;
+  lastGiftPct = pct;
+  const panel = document.getElementById('mystery-gift-panel');
+  panel.style.setProperty('--pct', pct);
+  document.getElementById('gift-label').textContent = pct + '% geöffnet';
+  const isOpen = pct >= 100;
+  document.getElementById('gift-ring-inner').textContent = isOpen ? '🎉' : '🎁';
+  document.getElementById('gift-caption').textContent = isOpen ? 'Überraschung freigeschaltet!' : 'Öffnet bei Stufe 100';
+  document.getElementById('gift-reveal').classList.toggle('show', isOpen);
+  panel.classList.toggle('gift-open', isOpen);
+  if (isOpen && !giftVideoLoaded) {
+    loadGiftVideo();
+    giftVideoLoaded = true;
+  }
+  if (!isOpen) giftVideoLoaded = false;
+  // Auf dem Handy: kleinen Hinweis-Punkt am Toggle-Button zeigen, sobald frisch freigeschaltet
+  if (isOpen && !wasOpenState && !panel.classList.contains('mobile-open')) {
+    document.getElementById('gift-toggle-btn').classList.add('ready');
+  }
+  layoutLeftStack();
+}
+
+document.getElementById('gift-toggle-btn').addEventListener('click', () => {
+  const panel = document.getElementById('mystery-gift-panel');
+  panel.classList.toggle('mobile-open');
+  if (panel.classList.contains('mobile-open')) {
+    document.getElementById('gift-toggle-btn').classList.remove('ready');
+  }
+});
+
+/* ---- Ticker: Animationen ---- */
+let clockTime = 0;
+let windTime = 0;
+let displayedLevel = 0;
+let lastDrawnLevel = -1;
+let firstSnapshotReceived = false;
+
+pixiApp.ticker.add((delta) => {
+  clockTime += delta;
+  windTime += delta * 0.004;
+  const gust = Math.random() < 0.0015 ? Math.random() * 0.6 : 0;
+  const intensity = 0.55 + Math.sin(windTime) * 0.35 + gust;
+
+  bgSnow.update(delta, Math.max(0.15, intensity * 0.6));
+  fgSnow.update(delta, Math.max(0.2, intensity * 1.15));
+  updateHouseFlicker();
+
+  const groundY = pixiApp.screen.height - 18;
+  for (const p of people) p.update(delta, groundY);
+
+  for (const s of stars) {
+    s.alpha = 0.4 + 0.5 * (Math.sin(clockTime * 0.03 + s.phase) * 0.5 + 0.5);
+  }
+  for (const c of spookyClouds) {
+    c.x += c.speed * delta;
+    if (c.x > pixiApp.screen.width + 150) c.x = -150;
+  }
+
+  // --- Fliegender Schlitten ---
+  if (sleighActive && sleighContainer) {
+    sleighProgress += delta;
+    const t = sleighProgress / sleighDuration;
+    const totalDist = pixiApp.screen.width + 520;
+    sleighContainer.x += sleighDirection * (totalDist / sleighDuration) * delta;
+    sleighContainer.y = sleighY + Math.sin(t * Math.PI * 3) * 10;
+    if (sleighContainer.noseRef) {
+      sleighContainer.noseRef.alpha = 0.7 + 0.3 * Math.sin(clockTime * 0.3);
+    }
+    if (t >= 1) {
+      flybyLayer.removeChild(sleighContainer);
+      sleighContainer.destroy({ children: true });
+      sleighContainer = null;
+      sleighActive = false;
+    }
+  }
+
+  // --- Mond: sanftes Leuchten/Flackern + Hover-Gesicht ---
+  if (moonGraphic) {
+    const flicker = 0.92 + 0.08 * Math.sin(clockTime * 0.02) + (Math.random() < 0.01 ? (Math.random() - 0.5) * 0.04 : 0);
+    moonGraphic.alpha = Math.max(0.85, Math.min(1, flicker));
+    if (moonGlowGraphic) {
+      moonGlowGraphic.scale.set(1 + 0.06 * Math.sin(clockTime * 0.015));
+      moonGlowGraphic.alpha = moonHovered ? 1.3 : 1;
+    }
+    if (moonFaceGraphic) {
+      const targetFaceAlpha = (IS_HALLOWEEN && moonHovered) ? 0.92 : 0;
+      moonFaceGraphic.alpha += (targetFaceAlpha - moonFaceGraphic.alpha) * 0.15;
+    }
+  }
+
+  // --- Ist der Baum aktuell "tot" (verwelkt, wartet auf Rettung)? ---
+  const isDead = (treeState.level || 0) === 0 && (treeState.deadLevel || 0) > 0;
+  const target = isDead ? treeState.deadLevel : (treeState.level || 0);
+
+  // --- Sichtbares, sanftes Wachsen/Schrumpfen des Baumes ---
+  if (Math.abs(displayedLevel - target) > 0.02) {
+    displayedLevel += (target - displayedLevel) * Math.min(1, 0.045 * delta);
+  } else {
+    displayedLevel = target;
+  }
+  if (Math.abs(displayedLevel - lastDrawnLevel) > 0.12) {
+    redrawTree(displayedLevel);
+    lastDrawnLevel = displayedLevel;
+  }
+  updateGiftUI(treeState.level || 0);
+
+  // --- Verwelken: Farbton, Lichthelligkeit, fallende Nadeln ---
+  let wilt = computeWiltProgress(treeState);
+  if (isDead) wilt = 1; // vollständig verwelkt, solange niemand gießt
+  if (currentTreeGraphic) {
+    currentTreeGraphic.tint = lerpColor(0xffffff, 0x8a6a42, wilt);
+  }
+  for (const lg of lightsContainer.children) {
+    if (lg.isStarGlow) {
+      lg.alpha = (0.25 + 0.15 * Math.sin(clockTime * 0.05)) * (1 - wilt * 0.9);
+      lg.scale.set(1 + 0.08 * Math.sin(clockTime * 0.05));
+    } else {
+      lg.alpha = (0.45 + 0.55 * (Math.sin(clockTime * 0.09 + lg.phase) * 0.5 + 0.5)) * (1 - wilt * 0.85);
+    }
+  }
+  if (wilt > 0.04) {
+    if (Math.random() < wilt * 3 * (delta / 60)) spawnNeedleAroundTree(wilt);
+  }
+  needleLayer.update(delta);
+
+  treeContainer.rotation = Math.sin(clockTime * 0.008) * 0.012;
+});
+
+/* ============================================================
+   5) START
+   ============================================================ */
+// Hinweis: Das Gießfeld (Gieß-/Pflegen-Button + Statusblock) ist bewusst
+// fest positioniert (siehe #top-controls-bar CSS, zentriert unter dem
+// Titel) und nicht mehr frei verschiebbar.
+// Lokal evtl. noch gespeicherte alte Verschiebe-Position wird entfernt,
+// damit das Feld garantiert wieder an seinem festen Platz erscheint.
+localStorage.removeItem('xmas_panel_pos_v1');
+
+async function init() {
+  layoutScene();
+  redrawTree(0);
+  setTimeout(startSleighFlight, 8000 + Math.random() * 10000); // erster Vorbeiflug bald nach dem Laden
+  scheduleNextSleigh();
+  if (firebaseReady) {
+    await ensureDocExists();
+    subscribeToTree();
+    subscribeToChat();
+    subscribeToPresence();
+    subscribeToHighscores();
+    subscribeToSlingshotScores();
+    subscribeToFlappyScores();
+    sendHeartbeat();
+    setInterval(sendHeartbeat, 20000);
+  } else {
+    updateTimerUI({ level: 0, lastWateredAt: null, deadLevel: 0 });
+    document.getElementById('online-badge').textContent = '👥 offline';
+    setPeopleCount(2); // dezente Atmosphäre auch ohne Firebase-Verbindung
+  }
+  layoutLeftStack();
+  layoutMobileHeader();
+  setInterval(() => {
+    updateTimerUI(treeState);
+    checkDecay(treeState);
+  }, 1000);
+}
+
+// redrawTree global verfügbar machen, damit man in der Browser-Konsole
+// z.B. redrawTree(100) zum Testen einzelner Stufen aufrufen kann.
+window.redrawTree = redrawTree;
+
+init();
+</script>
+</body>
+</html>
